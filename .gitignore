@@ -9,5 +9,3 @@ env/
 instance/
 .pytest_cache/
 .coverage
-app/static/uploads/*
-!app/static/uploads/.gitkeep
