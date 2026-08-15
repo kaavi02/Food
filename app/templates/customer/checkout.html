@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h2 class="mb-4">Checkout</h2>
+        <div class="card shadow-sm border-0 mb-4">
+            <div class="card-header bg-white border-bottom-0 pt-4">
+                <h5 class="mb-0">Delivery Details</h5>
+            </div>
+            <div class="card-body">
+                {% if addresses %}
+                <form method="POST" action="">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Select Delivery Address</label>
+                        {% for subfield in form.address_id %}
+                        <div class="form-check mb-2 p-3 border rounded {% if loop.first %}bg-light{% endif %}">
+                            {{ subfield(class="form-check-input") }}
+                            {{ subfield.label(class="form-check-label") }}
+                        </div>
+                        {% endfor %}
+                        <div class="mt-3">
+                            <a href="{{ url_for('customer.add_address', next='checkout') }}" class="btn btn-outline-primary btn-sm"><i class="bi bi-plus-circle"></i> Add New Address</a>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Payment Method</label>
+                        {% for subfield in form.payment_method %}
+                        <div class="form-check mb-2 p-3 border rounded {% if subfield.data == 'cod' %}border-success bg-success bg-opacity-10{% endif %}">
+                            {{ subfield(class="form-check-input") }}
+                            {{ subfield.label(class="form-check-label fw-bold") }}
+                            {% if subfield.data == 'cod' %}
+                            <span class="badge bg-success ms-2"><i class="bi bi-cash-stack"></i> Recommended</span>
+                            {% elif subfield.data == 'razorpay' %}
+                            <span class="badge bg-primary ms-2"><i class="bi bi-credit-card"></i> Online Payment</span>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="mb-4">
+                        {{ form.special_instructions.label(class="form-label fw-bold") }}
+                        {{ form.special_instructions(class="form-control", rows="2") }}
+                    </div>
+                    
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-success btn-lg") }}
+                    </div>
+                </form>
+                {% else %}
+                <div class="alert alert-warning">
+                    You don't have any saved addresses. Please add one to proceed.
+                </div>
+                <a href="{{ url_for('customer.add_address', next='checkout') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add New Address</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm border-0 position-sticky" style="top: 20px;">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
+                <h5 class="mb-0">Order Summary</h5>
+                <small class="text-muted">From {{ restaurant.name }}</small>
+            </div>
+            <div class="card-body">
+                <ul class="list-group list-group-flush mb-3">
+                    {% for item in cart.items %}
+                    <li class="list-group-item d-flex justify-content-between lh-sm px-0">
+                        <div>
+                            <h6 class="my-0">{{ item.food_item.name }}</h6>
+                            <small class="text-muted">Qty: {{ item.quantity }}</small>
+                        </div>
+                        <span class="text-muted">₹{{ "%.2f"|format(item.food_item.price * item.quantity) }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="d-flex justify-content-between mb-2 mt-3">
+                    <span class="text-muted">Subtotal</span>
+                    <span>₹{{ "%.2f"|format(subtotal) }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">Delivery Fee</span>
+                    <span>₹{{ "%.2f"|format(restaurant.delivery_fee) }}</span>
+                </div>
+                <div class="d-flex justify-content-between mb-3">
+                    <span class="text-muted">Tax (5%)</span>
+                    <span>₹{{ "%.2f"|format(tax) }}</span>
+                </div>
+                <hr>
+                <div class="d-flex justify-content-between mb-1">
+                    <strong class="fs-5">Total</strong>
+                    <strong class="fs-5">₹{{ "%.2f"|format(total) }}</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

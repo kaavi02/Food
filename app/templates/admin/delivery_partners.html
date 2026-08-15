@@ -1,0 +1,86 @@
+{% extends "admin/layout.html" %}
+{% block title %}Delivery Fleet Oversight - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">Delivery Fleet Oversight</h3>
+        <p class="text-muted mb-0">Monitor delivery partners, active pick-ups, and driver earnings.</p>
+    </div>
+    <span class="badge bg-primary fs-6 px-3 py-2">{{ partners|length }} Registered Partners</span>
+</div>
+
+<div class="row g-4">
+    {% for p in partners %}
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm rounded-3 h-100">
+            <div class="card-header bg-white border-0 pt-4 pb-2 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-info bg-opacity-10 text-primary d-flex align-items-center justify-content-center me-3 fw-bold fs-5" style="width: 48px; height: 48px;">
+                        <i class="bi bi-bicycle"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-0 fw-bold">{{ p.first_name }} {{ p.last_name }}</h5>
+                        <small class="text-muted"><i class="bi bi-envelope me-1"></i> {{ p.email }}</small>
+                    </div>
+                </div>
+                <div>
+                    {% if p.is_active %}
+                    <span class="badge bg-success">Active</span>
+                    {% else %}
+                    <span class="badge bg-danger">Suspended</span>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="card-body">
+                <div class="row g-2 mb-3 text-center">
+                    <div class="col-6">
+                        <div class="p-2 bg-light rounded">
+                            <span class="text-muted small d-block">Delivered Orders</span>
+                            <span class="fs-5 fw-bold text-success">{{ p.completed_deliveries_count }}</span>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="p-2 bg-light rounded">
+                            <span class="text-muted small d-block">Total Fees Earned</span>
+                            <span class="fs-5 fw-bold text-primary">₹{{ "%.2f"|format(p.earnings) }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <h6 class="fw-bold small text-uppercase text-muted mb-2">Active Deliveries ({{ p.active_deliveries|length }})</h6>
+                {% if p.active_deliveries %}
+                <ul class="list-group list-group-flush mb-0 border rounded">
+                    {% for o in p.active_deliveries %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center p-2">
+                        <div>
+                            <strong class="text-primary">#{{ o.order_number }}</strong>
+                            <small class="d-block text-muted">{{ o.restaurant.name }} &rarr; {{ o.customer.first_name }}</small>
+                        </div>
+                        <div class="text-end">
+                            <span class="badge bg-warning text-dark mb-1">{{ o.order_status|replace('_', ' ') }}</span>
+                            <div>
+                                <a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="btn btn-xs btn-outline-primary py-0 px-2 small">Track</a>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-muted small p-2 bg-light rounded text-center">
+                    No active deliveries in progress right now.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5 text-muted">
+        <i class="bi bi-bicycle display-4 d-block mb-3 opacity-50"></i>
+        <h5>No delivery partners registered</h5>
+        <p class="small">Register accounts with the "delivery_partner" role to track fleet activity.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

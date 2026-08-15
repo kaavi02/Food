@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Hotels & Restaurants - Order Online{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <div>
+        <h3 class="fw-bold mb-1">
+            {% if search %}
+            Search Results for "<span class="text-primary">{{ search }}</span>"
+            {% else %}
+            All Partner Hotels & Restaurants
+            {% endif %}
+        </h3>
+        <p class="text-muted mb-0">Discover top-rated culinary destinations and get fast delivery</p>
+    </div>
+    
+    <form class="d-flex" action="{{ url_for('customer.restaurants') }}" method="GET" style="min-width: 320px;">
+        <div class="input-group">
+            <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
+            <input class="form-control border-start-0" type="search" name="search" placeholder="Search hotels or cuisines..." value="{{ search }}">
+            <button class="btn btn-primary" type="submit">Search</button>
+            {% if search %}
+            <a href="{{ url_for('customer.restaurants') }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<div class="row g-4 mb-5">
+    {% for restaurant in restaurants %}
+    <div class="col-xl-3 col-lg-4 col-md-6">
+        <div class="card h-100 shadow-sm border-0 hotel-card">
+            <div class="card-img-container position-relative">
+                {% if restaurant.image %}
+                <img src="{{ url_for('static', filename='uploads/' + restaurant.image) }}" class="card-img-top" alt="{{ restaurant.name }}" style="height: 180px; object-fit: cover;">
+                {% else %}
+                <div class="bg-light text-muted d-flex align-items-center justify-content-center" style="height: 180px;">
+                    <i class="bi bi-shop fs-1 text-secondary opacity-50"></i>
+                </div>
+                {% endif %}
+                <span class="position-absolute top-0 end-0 m-2 badge bg-dark bg-opacity-75 text-white shadow-sm">
+                    <i class="bi bi-star-fill text-warning me-1"></i> {{ "%.1f"|format(restaurant.rating or 4.5) }}
+                </span>
+            </div>
+            
+            <div class="card-body d-flex flex-column p-3">
+                <h5 class="card-title fw-bold text-truncate mb-1" title="{{ restaurant.name }}">{{ restaurant.name }}</h5>
+                <p class="card-text text-muted small mb-2"><i class="bi bi-geo-alt me-1 text-primary"></i> {{ restaurant.city }} • {{ restaurant.cuisine_type or 'Multi-Cuisine' }}</p>
+                <p class="card-text text-muted small flex-grow-1 mb-3">{{ restaurant.description|truncate(60) or 'Quality delicious dishes prepared fresh.' }}</p>
+                
+                <div class="d-flex justify-content-between align-items-center small text-muted pt-2 border-top mb-3">
+                    <span><i class="bi bi-bicycle me-1 text-primary"></i> ₹{{ "%.2f"|format(restaurant.delivery_fee) }} fee</span>
+                    <span>Min ₹{{ "%.2f"|format(restaurant.minimum_order) }}</span>
+                </div>
+                
+                <a href="{{ url_for('customer.restaurant_detail', restaurant_id=restaurant.id) }}" class="btn btn-primary w-100">
+                    <span>View Menu</span> <i class="bi bi-arrow-right ms-1"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-5 text-muted">
+        <i class="bi bi-shop display-1 text-muted mb-3 opacity-50"></i>
+        <h4 class="fw-bold">No hotels found</h4>
+        <p class="small">Try searching with a different keyword or browse all available hotels.</p>
+        <a href="{{ url_for('customer.restaurants') }}" class="btn btn-primary px-4 py-2 mt-2">View All Hotels</a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

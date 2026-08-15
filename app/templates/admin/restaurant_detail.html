@@ -1,0 +1,201 @@
+{% extends "admin/layout.html" %}
+{% block title %}{{ restaurant.name }} - Admin Hotel Details{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('admin.restaurants') }}" class="btn btn-sm btn-outline-secondary mb-2">
+            <i class="bi bi-arrow-left me-1"></i> Back to Hotels
+        </a>
+        <h3 class="fw-bold mb-0">{{ restaurant.name }}</h3>
+        <span class="text-muted">{{ restaurant.cuisine_type or 'General' }} • {{ restaurant.city }}</span>
+    </div>
+    <div class="d-flex gap-2">
+        <form action="{{ url_for('admin.toggle_restaurant', restaurant_id=restaurant.id) }}" method="POST">
+            <button type="submit" class="btn {% if restaurant.is_active %}btn-danger{% else %}btn-success{% endif %}">
+                {% if restaurant.is_active %}
+                <i class="bi bi-slash-circle me-1"></i> Deactivate Hotel
+                {% else %}
+                <i class="bi bi-check-circle me-1"></i> Activate Hotel
+                {% endif %}
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Hotel Info & KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-light">
+            <div class="text-muted small fw-bold text-uppercase">Gross Revenue</div>
+            <h3 class="fw-bold text-success mb-0">₹{{ "%.2f"|format(total_sales) }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-light">
+            <div class="text-muted small fw-bold text-uppercase">Total Orders</div>
+            <h3 class="fw-bold text-primary mb-0">{{ total_orders }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-light">
+            <div class="text-muted small fw-bold text-uppercase">Delivery Fee</div>
+            <h3 class="fw-bold text-dark mb-0">₹{{ "%.2f"|format(restaurant.delivery_fee) }}</h3>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm rounded-3 p-3 bg-light">
+            <div class="text-muted small fw-bold text-uppercase">Minimum Order</div>
+            <h3 class="fw-bold text-dark mb-0">₹{{ "%.2f"|format(restaurant.minimum_order) }}</h3>
+        </div>
+    </div>
+</div>
+
+<!-- Hotel Overview & Owner Card -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-4">
+        <div class="row align-items-center">
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                {% if restaurant.image %}
+                <img src="{{ url_for('static', filename='uploads/' + restaurant.image) }}" alt="{{ restaurant.name }}" class="img-fluid rounded shadow-sm" style="max-height: 160px; width: 100%; object-fit: cover;">
+                {% else %}
+                <div class="bg-light rounded p-5 d-flex align-items-center justify-content-center">
+                    <i class="bi bi-shop display-4 text-muted"></i>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-9">
+                <div class="d-flex justify-content-between align-items-start mb-2">
+                    <div>
+                        <h4 class="fw-bold mb-1">{{ restaurant.name }}</h4>
+                        <p class="text-muted mb-2">{{ restaurant.description or 'No description provided.' }}</p>
+                    </div>
+                    <div>
+                        {% if restaurant.is_active %}
+                        <span class="badge bg-success px-3 py-2 fs-6">Active</span>
+                        {% else %}
+                        <span class="badge bg-danger px-3 py-2 fs-6">Inactive</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="row g-2 small text-secondary">
+                    <div class="col-sm-6"><i class="bi bi-geo-alt me-1 text-primary"></i> <strong>Address:</strong> {{ restaurant.address }}, {{ restaurant.city }}</div>
+                    <div class="col-sm-6"><i class="bi bi-telephone me-1 text-primary"></i> <strong>Phone:</strong> {{ restaurant.phone }}</div>
+                    <div class="col-sm-6"><i class="bi bi-person me-1 text-primary"></i> <strong>Owner:</strong> {{ restaurant.owner.first_name }} {{ restaurant.owner.last_name }} ({{ restaurant.owner.email }})</div>
+                    <div class="col-sm-6"><i class="bi bi-star-fill me-1 text-warning"></i> <strong>Rating:</strong> {{ "%.1f"|format(restaurant.rating or 4.5) }} / 5.0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Menu Categories & Food Items -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-header bg-white border-0 pt-4 pb-2 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0"><i class="bi bi-egg-fried text-danger me-2"></i> Menu Catalog ({{ categories|length }} Categories)</h5>
+    </div>
+    <div class="card-body">
+        {% for cat in categories %}
+        <div class="mb-4">
+            <div class="d-flex align-items-center border-bottom pb-2 mb-3">
+                <h6 class="fw-bold mb-0 text-primary">{{ cat.name }}</h6>
+                <span class="badge bg-light text-dark border ms-2">{{ cat.food_items|length }} dishes</span>
+                {% if cat.description %}
+                <small class="text-muted ms-3">{{ cat.description }}</small>
+                {% endif %}
+            </div>
+            
+            <div class="row g-3">
+                {% for food in cat.food_items %}
+                <div class="col-md-6">
+                    <div class="card border-0 bg-light p-3 rounded-3 h-100">
+                        <div class="d-flex align-items-center">
+                            {% if food.image %}
+                            <img src="{{ url_for('static', filename='uploads/' + food.image) }}" alt="{{ food.name }}" class="rounded me-3 shadow-sm" style="width: 64px; height: 64px; object-fit: cover;">
+                            {% else %}
+                            <div class="bg-white rounded me-3 d-flex align-items-center justify-content-center border" style="width: 64px; height: 64px;">
+                                <i class="bi bi-egg-fried text-muted fs-4"></i>
+                            </div>
+                            {% endif %}
+                            <div class="flex-grow-1">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h6 class="mb-0 fw-bold">{{ food.name }}</h6>
+                                    <span class="fw-bold text-primary">₹{{ "%.2f"|format(food.price) }}</span>
+                                </div>
+                                <p class="small text-muted mb-1">{{ food.description or '' }}</p>
+                                <div class="d-flex gap-2 align-items-center">
+                                    {% if food.is_vegetarian %}
+                                    <span class="badge bg-success" style="font-size: 0.65rem;">Veg</span>
+                                    {% endif %}
+                                    {% if food.is_available %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary" style="font-size: 0.65rem;">In Stock</span>
+                                    {% else %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger" style="font-size: 0.65rem;">Unavailable</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="col-12 text-muted small">No items in this category.</div>
+                {% endfor %}
+            </div>
+        </div>
+        {% else %}
+        <div class="text-center py-4 text-muted">
+            <i class="bi bi-egg-fried fs-1 d-block mb-2 opacity-50"></i>
+            No menu categories created for this hotel yet.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Recent Orders for this Hotel -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-header bg-white border-0 pt-4 pb-2">
+        <h5 class="fw-bold mb-0"><i class="bi bi-clock-history text-secondary me-2"></i> Recent Orders for {{ restaurant.name }}</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Order ID</th>
+                        <th>Customer</th>
+                        <th>Status</th>
+                        <th>Total</th>
+                        <th>Date</th>
+                        <th class="text-end pe-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in orders %}
+                    <tr>
+                        <td class="ps-4 fw-bold text-primary">#{{ o.order_number }}</td>
+                        <td>{{ o.customer.first_name }} {{ o.customer.last_name }}</td>
+                        <td>
+                            <span class="badge rounded-pill {% if o.order_status == 'DELIVERED' %}bg-success{% elif o.order_status in ['CANCELLED', 'REJECTED'] %}bg-danger{% else %}bg-primary{% endif %} px-2 py-1">
+                                {{ o.order_status|replace('_', ' ') }}
+                            </span>
+                        </td>
+                        <td class="fw-bold">₹{{ "%.2f"|format(o.total_amount) }}</td>
+                        <td class="text-muted small">{{ o.created_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+                        <td class="text-end pe-4">
+                            <a href="{{ url_for('admin.order_detail', order_id=o.id) }}" class="btn btn-sm btn-outline-primary">
+                                Details
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-4 text-muted">No orders placed at this hotel yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

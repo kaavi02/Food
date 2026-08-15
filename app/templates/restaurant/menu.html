@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Menu Management{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{{ url_for('restaurant.dashboard') }}" class="list-group-item list-group-item-action">Dashboard</a>
+            <a href="{{ url_for('restaurant.menu') }}" class="list-group-item list-group-item-action active">Menu Management</a>
+            <a href="{{ url_for('restaurant.setup_restaurant') }}" class="list-group-item list-group-item-action">Restaurant Settings</a>
+        </div>
+    </div>
+    <div class="col-md-9">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Menu Management</h2>
+            <a href="{{ url_for('restaurant.add_category') }}" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Add Category</a>
+        </div>
+        
+        {% for category in categories %}
+        <div class="card mb-4 shadow-sm">
+            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">{{ category.name }} <span class="badge bg-secondary rounded-pill">{{ category.food_items|length }}</span></h5>
+                <div>
+                    <a href="{{ url_for('restaurant.add_food', category_id=category.id) }}" class="btn btn-sm btn-success"><i class="bi bi-plus"></i> Add Food</a>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                {% if category.food_items %}
+                <ul class="list-group list-group-flush">
+                    {% for food in category.food_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            {% if food.image %}
+                            <img src="{{ url_for('static', filename='uploads/' + food.image) }}" alt="{{ food.name }}" class="img-thumbnail me-3" style="width: 60px; height: 60px; object-fit: cover;">
+                            {% else %}
+                            <div class="bg-light me-3 d-flex align-items-center justify-content-center" style="width: 60px; height: 60px;"><i class="bi bi-image text-muted"></i></div>
+                            {% endif %}
+                            <div>
+                                <h6 class="mb-0">{{ food.name }} 
+                                    {% if food.is_vegetarian %}<span class="badge bg-success ms-1">Veg</span>{% endif %}
+                                    {% if food.is_vegan %}<span class="badge bg-success ms-1">Vegan</span>{% endif %}
+                                </h6>
+                                <small class="text-muted">₹{{ "%.2f"|format(food.price) }}</small>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="badge {% if food.is_available %}bg-primary{% else %}bg-danger{% endif %} me-2">
+                                {% if food.is_available %}Available{% else %}Unavailable{% endif %}
+                            </span>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="p-3 text-center text-muted">No food items in this category.</div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            You haven't added any categories yet. <a href="{{ url_for('restaurant.add_category') }}" class="alert-link">Add your first category</a> to build your menu.
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

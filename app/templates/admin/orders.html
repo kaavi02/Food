@@ -1,0 +1,172 @@
+{% extends "admin/layout.html" %}
+{% block title %}Orders Management - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">Orders Management</h3>
+        <p class="text-muted mb-0">Track, inspect, and update live orders across all hotels.</p>
+    </div>
+    <form class="d-flex" method="GET" action="{{ url_for('admin.orders') }}">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        <div class="input-group">
+            <input type="search" name="q" class="form-control" placeholder="Search order #, customer, hotel..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+            {% if search_query %}
+            <a href="{{ url_for('admin.orders', status=status_filter) }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Status Filter Tabs with Counts -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-2">
+        <ul class="nav nav-pills flex-nowrap overflow-auto py-1">
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'ALL' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='all', q=search_query) }}">
+                    All <span class="badge {% if status_filter == 'ALL' %}bg-white text-primary{% else %}bg-secondary{% endif %} ms-1">{{ status_counts['ALL'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'PLACED' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='placed', q=search_query) }}">
+                    Placed <span class="badge {% if status_filter == 'PLACED' %}bg-white text-warning{% else %}bg-warning text-dark{% endif %} ms-1">{{ status_counts['PLACED'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'CONFIRMED' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='confirmed', q=search_query) }}">
+                    Confirmed <span class="badge {% if status_filter == 'CONFIRMED' %}bg-white text-info{% else %}bg-info text-dark{% endif %} ms-1">{{ status_counts['CONFIRMED'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'PREPARING' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='preparing', q=search_query) }}">
+                    Preparing <span class="badge {% if status_filter == 'PREPARING' %}bg-white text-primary{% else %}bg-primary{% endif %} ms-1">{{ status_counts['PREPARING'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'READY_FOR_PICKUP' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='ready_for_pickup', q=search_query) }}">
+                    Ready <span class="badge {% if status_filter == 'READY_FOR_PICKUP' %}bg-white text-dark{% else %}bg-secondary{% endif %} ms-1">{{ status_counts['READY_FOR_PICKUP'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'OUT_FOR_DELIVERY' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='out_for_delivery', q=search_query) }}">
+                    In Transit <span class="badge {% if status_filter == 'OUT_FOR_DELIVERY' %}bg-white text-primary{% else %}bg-info text-dark{% endif %} ms-1">{{ status_counts['OUT_FOR_DELIVERY'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'DELIVERED' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='delivered', q=search_query) }}">
+                    Delivered <span class="badge {% if status_filter == 'DELIVERED' %}bg-white text-success{% else %}bg-success{% endif %} ms-1">{{ status_counts['DELIVERED'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if status_filter == 'CANCELLED' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.orders', status='cancelled', q=search_query) }}">
+                    Cancelled <span class="badge {% if status_filter == 'CANCELLED' %}bg-white text-danger{% else %}bg-danger{% endif %} ms-1">{{ status_counts['CANCELLED'] }}</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Orders Table -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Order Details</th>
+                        <th>Hotel</th>
+                        <th>Customer</th>
+                        <th>Items Summary</th>
+                        <th>Status</th>
+                        <th>Payment</th>
+                        <th>Total</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in orders %}
+                    <tr>
+                        <td class="ps-4">
+                            <a href="{{ url_for('admin.order_detail', order_id=order.id) }}" class="fw-bold text-decoration-none">#{{ order.order_number }}</a>
+                            <div class="small text-muted">{{ order.created_at.strftime('%b %d, %Y %I:%M %p') }}</div>
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ order.restaurant.name }}</span>
+                            <small class="d-block text-muted">{{ order.restaurant.city }}</small>
+                        </td>
+                        <td>
+                            <div>{{ order.customer.first_name }} {{ order.customer.last_name }}</div>
+                            <small class="text-muted">{{ order.customer.phone or order.customer.email }}</small>
+                        </td>
+                        <td>
+                            <small class="text-muted">
+                                {% for item in order.items[:2] %}
+                                <div>{{ item.quantity }}x {{ item.food_item.name }}</div>
+                                {% endfor %}
+                                {% if order.items|length > 2 %}
+                                <span class="badge bg-light text-dark">+{{ order.items|length - 2 }} more</span>
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
+                            <span class="badge rounded-pill {% if order.order_status == 'DELIVERED' %}bg-success{% elif order.order_status in ['CANCELLED', 'REJECTED'] %}bg-danger{% elif order.order_status == 'PLACED' %}bg-warning text-dark{% elif order.order_status == 'OUT_FOR_DELIVERY' %}bg-info text-dark{% else %}bg-primary{% endif %} px-3 py-2">
+                                {{ order.order_status|replace('_', ' ') }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if order.payment %}
+                                <span class="badge {% if order.payment.gateway == 'cod' %}bg-secondary{% else %}bg-primary{% endif %} text-uppercase">
+                                    {{ order.payment.gateway }}
+                                </span>
+                                <small class="d-block {% if order.payment_status == 'SUCCESS' %}text-success{% elif order.payment_status == 'FAILED' %}text-danger{% else %}text-warning{% endif %} fw-bold">
+                                    {{ order.payment_status }}
+                                </small>
+                            {% else %}
+                                <span class="text-muted small">N/A</span>
+                            {% endif %}
+                        </td>
+                        <td class="fw-bold text-dark">
+                            ₹{{ "%.2f"|format(order.total_amount) }}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="btn-group">
+                                <a href="{{ url_for('admin.order_detail', order_id=order.id) }}" class="btn btn-sm btn-outline-primary" title="View Full Details">
+                                    <i class="bi bi-eye-fill"></i>
+                                </a>
+                                <button type="button" class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span class="visually-hidden">Toggle Dropdown</span>
+                                </button>
+                                <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                    <li><h6 class="dropdown-header">Quick Change Status</h6></li>
+                                    {% for s in ['PLACED', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED', 'CANCELLED'] %}
+                                    {% if s != order.order_status %}
+                                    <li>
+                                        <form method="POST" action="{{ url_for('admin.update_order_status', order_id=order.id) }}">
+                                            <input type="hidden" name="status" value="{{ s }}">
+                                            <button type="submit" class="dropdown-item small py-2">
+                                                Mark as <strong>{{ s|replace('_', ' ') }}</strong>
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-5 text-muted">
+                            <i class="bi bi-receipt display-4 d-block mb-3 opacity-50"></i>
+                            <h5>No orders found</h5>
+                            <p class="small">Try changing your search query or status filter.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "admin/layout.html" %}
+{% block title %}Hotels & Restaurants - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">Hotels & Restaurants Management</h3>
+        <p class="text-muted mb-0">Manage listed hotels, inspect food menus, and approve or deactivate vendors.</p>
+    </div>
+    <form class="d-flex" method="GET" action="{{ url_for('admin.restaurants') }}">
+        <input type="hidden" name="status" value="{{ status_filter }}">
+        <div class="input-group">
+            <input type="search" name="q" class="form-control" placeholder="Search hotel, cuisine, city..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+            {% if search_query %}
+            <a href="{{ url_for('admin.restaurants', status=status_filter) }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Filters Bar -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-2 d-flex justify-content-between align-items-center">
+        <ul class="nav nav-pills">
+            <li class="nav-item me-2">
+                <a class="nav-link {% if status_filter == 'all' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.restaurants', status='all', q=search_query) }}">
+                    All Hotels <span class="badge {% if status_filter == 'all' %}bg-white text-primary{% else %}bg-secondary{% endif %} ms-1">{{ total_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-2">
+                <a class="nav-link {% if status_filter == 'active' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.restaurants', status='active', q=search_query) }}">
+                    Active <span class="badge {% if status_filter == 'active' %}bg-white text-success{% else %}bg-success{% endif %} ms-1">{{ active_count }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-2">
+                <a class="nav-link {% if status_filter == 'inactive' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.restaurants', status='inactive', q=search_query) }}">
+                    Inactive / Suspended <span class="badge {% if status_filter == 'inactive' %}bg-white text-danger{% else %}bg-danger{% endif %} ms-1">{{ inactive_count }}</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Hotels List Table -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">Hotel / Restaurant</th>
+                        <th>Owner</th>
+                        <th>Location</th>
+                        <th>Rating</th>
+                        <th>Menu Items</th>
+                        <th>Total Orders</th>
+                        <th>Gross Sales</th>
+                        <th>Status</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in restaurants %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                {% if r.image %}
+                                <img src="{{ url_for('static', filename='uploads/' + r.image) }}" alt="{{ r.name }}" class="rounded me-3 shadow-sm" style="width: 52px; height: 52px; object-fit: cover;">
+                                {% else %}
+                                <div class="bg-light rounded me-3 d-flex align-items-center justify-content-center" style="width: 52px; height: 52px;">
+                                    <i class="bi bi-shop text-muted fs-4"></i>
+                                </div>
+                                {% endif %}
+                                <div>
+                                    <a href="{{ url_for('admin.restaurant_detail', restaurant_id=r.id) }}" class="fw-bold text-decoration-none text-dark d-block">
+                                        {{ r.name }}
+                                    </a>
+                                    <small class="badge bg-light text-muted border">{{ r.cuisine_type or 'General' }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div>{{ r.owner.first_name }} {{ r.owner.last_name }}</div>
+                            <small class="text-muted">{{ r.owner.email }}</small>
+                        </td>
+                        <td>
+                            <div>{{ r.city }}</div>
+                            <small class="text-muted">{{ r.phone }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning text-dark"><i class="bi bi-star-fill text-dark me-1"></i>{{ "%.1f"|format(r.rating or 4.5) }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-light text-dark border">{{ r.menu_items_count }} items</span>
+                        </td>
+                        <td>
+                            <span class="fw-bold">{{ r.orders_count }}</span>
+                        </td>
+                        <td class="fw-bold text-success">
+                            ₹{{ "%.2f"|format(r.total_sales) }}
+                        </td>
+                        <td>
+                            {% if r.is_active %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Active</span>
+                            {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-x-circle me-1"></i> Inactive</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end pe-4">
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="{{ url_for('admin.restaurant_detail', restaurant_id=r.id) }}" class="btn btn-sm btn-outline-primary" title="View Menu & Details">
+                                    <i class="bi bi-eye"></i> Details
+                                </a>
+                                <form action="{{ url_for('admin.toggle_restaurant', restaurant_id=r.id) }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm {% if r.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" title="{% if r.is_active %}Deactivate Hotel{% else %}Activate Hotel{% endif %}">
+                                        {% if r.is_active %}
+                                        <i class="bi bi-slash-circle"></i>
+                                        {% else %}
+                                        <i class="bi bi-check-circle"></i>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="9" class="text-center py-5 text-muted">
+                            <i class="bi bi-shop display-4 d-block mb-3 opacity-50"></i>
+                            <h5>No hotels found</h5>
+                            <p class="small">Try adjusting your search criteria.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

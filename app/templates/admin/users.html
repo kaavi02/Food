@@ -1,0 +1,148 @@
+{% extends "admin/layout.html" %}
+{% block title %}User Management - Admin{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1">User & Role Management</h3>
+        <p class="text-muted mb-0">Manage customer accounts, hotel owners, delivery partners, and administrators.</p>
+    </div>
+    <form class="d-flex" method="GET" action="{{ url_for('admin.users') }}">
+        <input type="hidden" name="role" value="{{ role_filter }}">
+        <div class="input-group">
+            <input type="search" name="q" class="form-control" placeholder="Search name, email, phone..." value="{{ search_query }}">
+            <button class="btn btn-primary" type="submit"><i class="bi bi-search"></i></button>
+            {% if search_query %}
+            <a href="{{ url_for('admin.users', role=role_filter) }}" class="btn btn-outline-secondary"><i class="bi bi-x"></i></a>
+            {% endif %}
+        </div>
+    </form>
+</div>
+
+<!-- Role Filter Tabs with Counts -->
+<div class="card border-0 shadow-sm rounded-3 mb-4">
+    <div class="card-body p-2">
+        <ul class="nav nav-pills flex-nowrap overflow-auto py-1">
+            <li class="nav-item me-1">
+                <a class="nav-link {% if role_filter == 'all' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.users', role='all', q=search_query) }}">
+                    All Users <span class="badge {% if role_filter == 'all' %}bg-white text-primary{% else %}bg-secondary{% endif %} ms-1">{{ role_counts['all'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if role_filter == 'customer' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.users', role='customer', q=search_query) }}">
+                    Customers <span class="badge {% if role_filter == 'customer' %}bg-white text-primary{% else %}bg-secondary{% endif %} ms-1">{{ role_counts['customer'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if role_filter == 'restaurant_owner' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.users', role='restaurant_owner', q=search_query) }}">
+                    Hotel Owners <span class="badge {% if role_filter == 'restaurant_owner' %}bg-white text-warning{% else %}bg-warning text-dark{% endif %} ms-1">{{ role_counts['restaurant_owner'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if role_filter == 'delivery_partner' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.users', role='delivery_partner', q=search_query) }}">
+                    Delivery Fleet <span class="badge {% if role_filter == 'delivery_partner' %}bg-white text-info{% else %}bg-info text-dark{% endif %} ms-1">{{ role_counts['delivery_partner'] }}</span>
+                </a>
+            </li>
+            <li class="nav-item me-1">
+                <a class="nav-link {% if role_filter == 'admin' %}active fw-bold{% else %}text-dark{% endif %}" href="{{ url_for('admin.users', role='admin', q=search_query) }}">
+                    Admins <span class="badge {% if role_filter == 'admin' %}bg-white text-dark{% else %}bg-dark{% endif %} ms-1">{{ role_counts['admin'] }}</span>
+                </a>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Users Table -->
+<div class="card border-0 shadow-sm rounded-3">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th class="ps-4">User</th>
+                        <th>Contact</th>
+                        <th>Role</th>
+                        <th>Status</th>
+                        <th>Joined Date</th>
+                        <th class="text-end pe-4">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in users %}
+                    <tr>
+                        <td class="ps-4">
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center me-3 fw-bold" style="width: 44px; height: 44px;">
+                                    {{ u.first_name[0] }}{{ u.last_name[0] }}
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 fw-bold">{{ u.first_name }} {{ u.last_name }}</h6>
+                                    <small class="text-muted">User ID: #{{ u.id }}</small>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <div><i class="bi bi-envelope me-1 text-muted"></i> {{ u.email }}</div>
+                            <small class="text-muted"><i class="bi bi-telephone me-1"></i> {{ u.phone or 'Not provided' }}</small>
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button class="btn btn-sm badge {% if u.role == 'customer' %}bg-secondary{% elif u.role == 'restaurant_owner' %}bg-warning text-dark{% elif u.role == 'delivery_partner' %}bg-info text-dark{% else %}bg-primary{% endif %} dropdown-toggle text-uppercase p-2" type="button" data-bs-toggle="dropdown">
+                                    {{ u.role|replace('_', ' ') }}
+                                </button>
+                                <ul class="dropdown-menu shadow-sm">
+                                    <li><h6 class="dropdown-header">Change Role</h6></li>
+                                    {% for r in ['customer', 'restaurant_owner', 'delivery_partner', 'admin'] %}
+                                    <li>
+                                        <form action="{{ url_for('admin.change_user_role', user_id=u.id) }}" method="POST">
+                                            <input type="hidden" name="role" value="{{ r }}">
+                                            <button type="submit" class="dropdown-item {% if u.role == r %}active{% endif %}">
+                                                {{ r|replace('_', ' ')|title }}
+                                            </button>
+                                        </form>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </td>
+                        <td>
+                            {% if u.is_active %}
+                            <span class="badge bg-success"><i class="bi bi-check-circle me-1"></i> Active</span>
+                            {% else %}
+                            <span class="badge bg-danger"><i class="bi bi-slash-circle me-1"></i> Suspended</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-muted small">
+                            {{ u.created_at.strftime('%b %d, %Y') if u.created_at else 'N/A' }}
+                        </td>
+                        <td class="text-end pe-4">
+                            {% if u.id != current_user.id %}
+                            <form action="{{ url_for('admin.toggle_user', user_id=u.id) }}" method="POST" class="d-inline">
+                                <button type="submit" class="btn btn-sm {% if u.is_active %}btn-outline-danger{% else %}btn-outline-success{% endif %}" title="{% if u.is_active %}Deactivate User{% else %}Activate User{% endif %}">
+                                    {% if u.is_active %}
+                                    <i class="bi bi-person-x"></i> Suspend
+                                    {% else %}
+                                    <i class="bi bi-person-check"></i> Activate
+                                    {% endif %}
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="badge bg-light text-muted border">You</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center py-5 text-muted">
+                            <i class="bi bi-people display-4 d-block mb-3 opacity-50"></i>
+                            <h5>No users found</h5>
+                            <p class="small">Try changing your search query or role filter.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

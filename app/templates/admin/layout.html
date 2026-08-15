@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <!-- Admin Sidebar Navigation -->
+    <div class="col-lg-3 col-md-4 mb-4">
+        <div class="card shadow-sm border-0 sticky-top" style="top: 20px; z-index: 100;">
+            <div class="card-header bg-dark text-white p-3 d-flex align-items-center justify-content-between">
+                <span class="fw-bold fs-5"><i class="bi bi-speedometer2 text-primary me-2"></i> Admin Panel</span>
+                <span class="badge bg-primary rounded-pill">PRO</span>
+            </div>
+            <div class="list-group list-group-flush py-2">
+                <a href="{{ url_for('admin.dashboard') }}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center justify-content-between {% if request.endpoint == 'admin.dashboard' %}active text-white bg-primary fw-bold{% else %}text-dark{% endif %}">
+                    <span><i class="bi bi-grid-1x2-fill me-3 {% if request.endpoint == 'admin.dashboard' %}text-white{% else %}text-primary{% endif %}"></i> Dashboard</span>
+                    <i class="bi bi-chevron-right small opacity-75"></i>
+                </a>
+                <a href="{{ url_for('admin.orders') }}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center justify-content-between {% if request.endpoint in ['admin.orders', 'admin.order_detail'] %}active text-white bg-primary fw-bold{% else %}text-dark{% endif %}">
+                    <span><i class="bi bi-receipt me-3 {% if request.endpoint in ['admin.orders', 'admin.order_detail'] %}text-white{% else %}text-success{% endif %}"></i> Orders Management</span>
+                    <i class="bi bi-chevron-right small opacity-75"></i>
+                </a>
+                <a href="{{ url_for('admin.restaurants') }}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center justify-content-between {% if request.endpoint in ['admin.restaurants', 'admin.restaurant_detail'] %}active text-white bg-primary fw-bold{% else %}text-dark{% endif %}">
+                    <span><i class="bi bi-shop me-3 {% if request.endpoint in ['admin.restaurants', 'admin.restaurant_detail'] %}text-white{% else %}text-warning{% endif %}"></i> Hotels & Restaurants</span>
+                    <i class="bi bi-chevron-right small opacity-75"></i>
+                </a>
+                <a href="{{ url_for('admin.menu') }}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center justify-content-between {% if request.endpoint == 'admin.menu' %}active text-white bg-primary fw-bold{% else %}text-dark{% endif %}">
+                    <span><i class="bi bi-egg-fried me-3 {% if request.endpoint == 'admin.menu' %}text-white{% else %}text-danger{% endif %}"></i> Global Menu</span>
+                    <i class="bi bi-chevron-right small opacity-75"></i>
+                </a>
+                <a href="{{ url_for('admin.users') }}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center justify-content-between {% if request.endpoint == 'admin.users' %}active text-white bg-primary fw-bold{% else %}text-dark{% endif %}">
+                    <span><i class="bi bi-people-fill me-3 {% if request.endpoint == 'admin.users' %}text-white{% else %}text-info{% endif %}"></i> User Accounts</span>
+                    <i class="bi bi-chevron-right small opacity-75"></i>
+                </a>
+                <a href="{{ url_for('admin.delivery_partners') }}" class="list-group-item list-group-item-action border-0 py-3 d-flex align-items-center justify-content-between {% if request.endpoint == 'admin.delivery_partners' %}active text-white bg-primary fw-bold{% else %}text-dark{% endif %}">
+                    <span><i class="bi bi-bicycle me-3 {% if request.endpoint == 'admin.delivery_partners' %}text-white{% else %}text-secondary{% endif %}"></i> Delivery Fleet</span>
+                    <i class="bi bi-chevron-right small opacity-75"></i>
+                </a>
+            </div>
+            <div class="card-footer bg-light p-3 text-muted small">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
+                        <i class="bi bi-person-fill"></i>
+                    </div>
+                    <div>
+                        <strong class="text-dark d-block">{{ current_user.first_name }} {{ current_user.last_name }}</strong>
+                        <span class="badge bg-success" style="font-size: 0.7rem;">Administrator</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Main Body -->
+    <div class="col-lg-9 col-md-8">
+        {% block admin_content %}{% endblock %}
+    </div>
+</div>
+{% endblock %}

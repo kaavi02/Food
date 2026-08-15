@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{{ url_for('restaurant.dashboard') }}" class="list-group-item list-group-item-action">Dashboard</a>
+            <a href="{{ url_for('restaurant.menu') }}" class="list-group-item list-group-item-action">Menu Management</a>
+            <a href="{{ url_for('restaurant.setup_restaurant') }}" class="list-group-item list-group-item-action active">Restaurant Settings</a>
+        </div>
+    </div>
+    <div class="col-md-9">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">{{ title }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.name.label(class="form-label") }}
+                            {{ form.name(class="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.phone.label(class="form-label") }}
+                            {{ form.phone(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control") }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.address.label(class="form-label") }}
+                            {{ form.address(class="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.city.label(class="form-label") }}
+                            {{ form.city(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            {{ form.cuisine_type.label(class="form-label") }}
+                            {{ form.cuisine_type(class="form-control") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.delivery_fee.label(class="form-label") }}
+                            {{ form.delivery_fee(class="form-control") }}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            {{ form.minimum_order.label(class="form-label") }}
+                            {{ form.minimum_order(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.image.label(class="form-label") }}
+                        {{ form.image(class="form-control") }}
+                    </div>
+                    <div class="mb-3 form-check">
+                        {{ form.is_active(class="form-check-input") }}
+                        {{ form.is_active.label(class="form-check-label") }}
+                    </div>
+                    <div class="d-grid">
+                        {{ form.submit(class="btn btn-primary") }}
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

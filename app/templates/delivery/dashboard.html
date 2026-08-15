@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Delivery Dashboard{% endblock %}
+{% block content %}
+<h2 class="mb-4">Welcome, {{ current_user.first_name }}!</h2>
+
+<div class="row">
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-warning text-dark">
+                <h5 class="mb-0">Active Deliveries</h5>
+            </div>
+            <div class="card-body">
+                {% if active_orders %}
+                    {% for order in active_orders %}
+                    <div class="border rounded p-3 mb-3 bg-light">
+                        <div class="d-flex justify-content-between mb-2">
+                            <strong>{{ order.order_number }}</strong>
+                            <span class="badge bg-primary">{{ order.order_status }}</span>
+                        </div>
+                        <p class="mb-1"><i class="bi bi-shop text-muted"></i> <strong>From:</strong> {{ order.restaurant.name }} ({{ order.restaurant.address }})</p>
+                        <p class="mb-2"><i class="bi bi-person text-muted"></i> <strong>To:</strong> {{ order.customer.first_name }} {{ order.customer.last_name }} ({{ order.address_id }})</p>
+                        {% if order.payment.gateway == 'cod' and order.payment_status == 'PENDING' %}
+                        <div class="alert alert-danger py-1 px-2 small mb-2 d-inline-block">Collect Cash: ₹{{ "%.2f"|format(order.total_amount) }}</div>
+                        {% endif %}
+                        <form action="{{ url_for('delivery.mark_delivered', order_id=order.id) }}" method="POST">
+                            <button type="submit" class="btn btn-success btn-sm w-100 mt-2"><i class="bi bi-check-circle"></i> Mark as Delivered</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center my-4">You have no active deliveries.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6 mb-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Available Orders</h5>
+            </div>
+            <div class="card-body">
+                {% if available_orders %}
+                    {% for order in available_orders %}
+                    <div class="border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between mb-2">
+                            <strong>{{ order.order_number }}</strong>
+                            <span class="text-success fw-bold">₹{{ "%.2f"|format(order.delivery_fee) }}</span>
+                        </div>
+                        <p class="small mb-1"><i class="bi bi-geo-alt text-muted"></i> {{ order.restaurant.name }} &rarr; Customer</p>
+                        <form action="{{ url_for('delivery.accept_order', order_id=order.id) }}" method="POST">
+                            <button type="submit" class="btn btn-outline-primary btn-sm w-100 mt-2">Accept Delivery</button>
+                        </form>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center my-4">No new orders available right now.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mt-2">
+    <div class="card-header bg-white">
+        <h5 class="mb-0">Recently Completed</h5>
+    </div>
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th class="ps-3">Order #</th>
+                    <th>Date</th>
+                    <th>Restaurant</th>
+                    <th>Fee Earned</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in completed_orders %}
+                <tr>
+                    <td class="ps-3">{{ order.order_number }}</td>
+                    <td>{{ order.updated_at.strftime('%b %d, %H:%M') }}</td>
+                    <td>{{ order.restaurant.name }}</td>
+                    <td class="text-success">₹{{ "%.2f"|format(order.delivery_fee) }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-3">No completed deliveries yet.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

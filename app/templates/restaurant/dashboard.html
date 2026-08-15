@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Restaurant Dashboard{% endblock %}
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="list-group">
+            <a href="{{ url_for('restaurant.dashboard') }}" class="list-group-item list-group-item-action active">Dashboard</a>
+            <a href="{{ url_for('restaurant.menu') }}" class="list-group-item list-group-item-action">Menu Management</a>
+            <a href="{{ url_for('restaurant.setup_restaurant') }}" class="list-group-item list-group-item-action">Restaurant Settings</a>
+            <!-- Orders link to be added -->
+        </div>
+    </div>
+    <div class="col-md-9">
+        <h2>Welcome, {{ current_user.first_name }}!</h2>
+        <div class="card mt-3">
+            <div class="card-body">
+                <h5 class="card-title">{{ restaurant.name }}</h5>
+                <p class="card-text">{{ restaurant.description }}</p>
+                <span class="badge {% if restaurant.is_active %}bg-success{% else %}bg-danger{% endif %}">
+                    {% if restaurant.is_active %}Active{% else %}Inactive{% endif %}
+                </span>
+            </div>
+        </div>
+        
+        <h4 class="mt-4">Recent Orders</h4>
+        {% if recent_orders %}
+            <table class="table table-striped mt-2">
+                <thead>
+                    <tr>
+                        <th>Order #</th>
+                        <th>Status</th>
+                        <th>Amount</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for order in recent_orders %}
+                    <tr>
+                        <td>{{ order.order_number }}</td>
+                        <td><span class="badge bg-info">{{ order.order_status }}</span></td>
+                        <td>₹{{ "%.2f"|format(order.total_amount) }}</td>
+                        <td>{{ order.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No recent orders.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

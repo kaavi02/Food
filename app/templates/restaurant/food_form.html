@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">{{ title }} in {{ category.name }}</h4>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="" enctype="multipart/form-data">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.name.label(class="form-label") }}
+                        {{ form.name(class="form-control") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.description.label(class="form-label") }}
+                        {{ form.description(class="form-control") }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ form.price.label(class="form-label") }}
+                            {{ form.price(class="form-control") }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            {{ form.preparation_time.label(class="form-label") }}
+                            {{ form.preparation_time(class="form-control") }}
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        {{ form.image.label(class="form-label") }}
+                        {{ form.image(class="form-control") }}
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4 mb-3 form-check ps-4">
+                            {{ form.is_vegetarian(class="form-check-input") }}
+                            {{ form.is_vegetarian.label(class="form-check-label") }}
+                        </div>
+                        <div class="col-md-4 mb-3 form-check ps-4">
+                            {{ form.is_vegan(class="form-check-input") }}
+                            {{ form.is_vegan.label(class="form-check-label") }}
+                        </div>
+                        <div class="col-md-4 mb-3 form-check ps-4">
+                            {{ form.is_available(class="form-check-input") }}
+                            {{ form.is_available.label(class="form-check-label") }}
+                        </div>
+                    </div>
+                    <div class="d-grid mt-3">
+                        {{ form.submit(class="btn btn-success") }}
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <a href="{{ url_for('restaurant.menu') }}" class="btn btn-secondary btn-sm">Cancel</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
