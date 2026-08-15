@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, current_app, abort
+from flask import render_template, redirect, url_for, flash, request, current_app, abort, jsonify
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from app import db
@@ -224,7 +224,7 @@ def checkout():
                 return redirect(url_for('customer.payment', order_id=order.id))
             else:
                 flash('Order placed successfully with Cash on Delivery.', 'success')
-                return redirect(url_for('customer.orders'))
+                return redirect(url_for('customer.track_order', order_id=order.id))
                 
         except Exception as e:
             db.session.rollback()
@@ -282,22 +282,69 @@ def payment_verify():
         
         db.session.commit()
         flash('Payment successful! Your order is confirmed.', 'success')
+        return redirect(url_for('customer.track_order', order_id=order.id))
     except razorpay.errors.SignatureVerificationError:
         order.payment.status = 'FAILED'
         order.payment_status = 'FAILED'
         db.session.commit()
         flash('Payment verification failed.', 'danger')
-        
-    return redirect(url_for('customer.orders'))
+        return redirect(url_for('customer.orders'))
 
 @customer.route('/orders')
 @login_required
 def orders():
     my_orders = Order.query.options(
         joinedload(Order.items).joinedload(OrderItem.food_item),
-        joinedload(Order.restaurant)
+        joinedload(Order.restaurant),
+        joinedload(Order.address)
     ).filter_by(customer_id=current_user.id).order_by(Order.created_at.desc()).all()
     return render_template('customer/orders.html', orders=my_orders)
+
+@customer.route('/order/<int:order_id>/track')
+@login_required
+def track_order(order_id):
+    order = Order.query.options(
+        joinedload(Order.items).joinedload(OrderItem.food_item),
+        joinedload(Order.restaurant),
+        joinedload(Order.address),
+        joinedload(Order.payment)
+    ).filter_by(id=order_id).first_or_404()
+    
+    if order.customer_id != current_user.id and current_user.role != 'admin':
+        abort(403)
+        
+    history = OrderStatusHistory.query.filter_by(order_id=order_id).order_by(OrderStatusHistory.created_at.asc()).all()
+    
+    # 5 standard tracking steps
+    stages = [
+        {'key': 'PLACED', 'label': 'Order Placed', 'icon': 'bi-receipt'},
+        {'key': 'CONFIRMED', 'label': 'Confirmed', 'icon': 'bi-check2-circle'},
+        {'key': 'PREPARING', 'label': 'Preparing', 'icon': 'bi-egg-fried'},
+        {'key': 'OUT_FOR_DELIVERY', 'label': 'On the Way', 'icon': 'bi-bicycle'},
+        {'key': 'DELIVERED', 'label': 'Delivered', 'icon': 'bi-house-check-fill'}
+    ]
+    
+    status_order = ['PLACED', 'CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'OUT_FOR_DELIVERY', 'DELIVERED']
+    current_step = 0
+    if order.order_status in status_order:
+        idx = status_order.index(order.order_status)
+        if idx >= 4: # OUT_FOR_DELIVERY (4) -> step 3, DELIVERED (5) -> step 4
+            current_step = 3 if idx == 4 else 4
+        elif idx == 3: # READY_FOR_PICKUP counts as end of preparing
+            current_step = 2
+        else:
+            current_step = idx
+            
+    is_cancelled = order.order_status in ['CANCELLED', 'REJECTED']
+
+    return render_template(
+        'customer/track_order.html',
+        order=order,
+        history=history,
+        stages=stages,
+        current_step=current_step,
+        is_cancelled=is_cancelled
+    )
 
 @customer.route('/address/add', methods=['GET', 'POST'])
 @login_required

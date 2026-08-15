@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% block title %}Track Order #{{ order.order_number }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('customer.orders') }}" class="btn btn-sm btn-outline-secondary mb-2">
+            <i class="bi bi-arrow-left me-1"></i> Back to My Orders
+        </a>
+        <h3 class="fw-bold mb-0">Track Order #{{ order.order_number }}</h3>
+        <small class="text-muted">Placed on {{ order.created_at.strftime('%B %d, %Y at %I:%M %p') }}</small>
+    </div>
+    <div>
+        <span class="badge rounded-pill {% if order.order_status == 'DELIVERED' %}bg-success{% elif order.order_status in ['CANCELLED', 'REJECTED'] %}bg-danger{% elif order.order_status == 'OUT_FOR_DELIVERY' %}bg-info text-dark{% else %}bg-primary{% endif %} px-3 py-2 fs-6">
+            {{ order.order_status|replace('_', ' ') }}
+        </span>
+    </div>
+</div>
+
+{% if is_cancelled %}
+<div class="alert alert-danger d-flex align-items-center mb-4 p-4 rounded-4 shadow-sm" role="alert">
+    <i class="bi bi-x-circle-fill display-5 me-3"></i>
+    <div>
+        <h5 class="fw-bold mb-1">This order has been cancelled</h5>
+        <p class="mb-0 small">If you made an online payment, a refund will be processed to your original payment method.</p>
+    </div>
+</div>
+{% else %}
+<!-- Visual Order Progress Stepper -->
+<div class="card border-0 shadow-sm rounded-4 p-4 mb-4">
+    <div class="row text-center position-relative g-2">
+        {% for stage in stages %}
+        {% set is_active = loop.index0 <= current_step %}
+        {% set is_current = loop.index0 == current_step %}
+        <div class="col position-relative">
+            <div class="d-flex flex-column align-items-center">
+                <div class="rounded-circle d-flex align-items-center justify-content-center mb-2 shadow-sm {% if is_current %}bg-primary text-white ring-animation{% elif is_active %}bg-success text-white{% else %}bg-light text-muted border{% endif %}" style="width: 52px; height: 52px; font-size: 1.25rem;">
+                    <i class="bi {{ stage.icon }}"></i>
+                </div>
+                <span class="small fw-bold {% if is_current %}text-primary{% elif is_active %}text-dark{% else %}text-muted{% endif %}">
+                    {{ stage.label }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="row g-4 mb-5">
+    <!-- Left Column: Ordered Items & Bill -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4">
+            <div class="card-header bg-white border-0 pt-4 pb-2">
+                <h5 class="fw-bold mb-0"><i class="bi bi-basket text-primary me-2"></i> Items from {{ order.restaurant.name }}</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-4">Item</th>
+                                <th>Unit Price</th>
+                                <th>Qty</th>
+                                <th class="text-end pe-4">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in order.items %}
+                            <tr>
+                                <td class="ps-4">
+                                    <div class="d-flex align-items-center">
+                                        {% if item.food_item.image %}
+                                        <img src="{{ url_for('static', filename='uploads/' + item.food_item.image) }}" alt="{{ item.food_item.name }}" class="rounded-3 me-3" style="width: 48px; height: 48px; object-fit: cover;">
+                                        {% else %}
+                                        <div class="bg-light rounded-3 me-3 d-flex align-items-center justify-content-center border" style="width: 48px; height: 48px;">
+                                            <i class="bi bi-egg-fried text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-0 fw-bold">{{ item.food_item.name }}</h6>
+                                            {% if item.food_item.is_vegetarian %}
+                                            <span class="badge bg-success" style="font-size: 0.65rem;">Veg</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>₹{{ "%.2f"|format(item.price) }}</td>
+                                <td><span class="badge bg-light text-dark border px-2 py-1">{{ item.quantity }}</span></td>
+                                <td class="text-end pe-4 fw-bold">₹{{ "%.2f"|format(item.price * item.quantity) }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Financial Breakdown -->
+                <div class="p-4 border-top bg-light">
+                    <div class="row justify-content-end">
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between mb-2 small">
+                                <span class="text-muted">Item Total (Subtotal):</span>
+                                <span class="fw-bold">₹{{ "%.2f"|format(order.subtotal) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2 small">
+                                <span class="text-muted">GST & Restaurant Charges (5%):</span>
+                                <span>₹{{ "%.2f"|format(order.tax) }}</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2 small">
+                                <span class="text-muted">Delivery Partner Fee:</span>
+                                <span>₹{{ "%.2f"|format(order.delivery_fee) }}</span>
+                            </div>
+                            {% if order.discount > 0 %}
+                            <div class="d-flex justify-content-between mb-2 small text-success">
+                                <span>Discount:</span>
+                                <span>-₹{{ "%.2f"|format(order.discount) }}</span>
+                            </div>
+                            {% endif %}
+                            <hr class="my-2">
+                            <div class="d-flex justify-content-between fs-5 fw-bold text-dark">
+                                <span>Total Paid:</span>
+                                <span class="text-primary">₹{{ "%.2f"|format(order.total_amount) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Status History Timeline -->
+        <div class="card border-0 shadow-sm rounded-4">
+            <div class="card-header bg-white border-0 pt-4 pb-2">
+                <h5 class="fw-bold mb-0"><i class="bi bi-clock-history text-secondary me-2"></i> Live Activity History</h5>
+            </div>
+            <div class="card-body p-4">
+                <ul class="timeline list-unstyled position-relative ps-4 mb-0">
+                    {% for h in history %}
+                    <li class="mb-3 position-relative">
+                        <div class="position-absolute rounded-circle bg-primary" style="left: -24px; top: 4px; width: 12px; height: 12px;"></div>
+                        <strong class="d-block">{{ h.status|replace('_', ' ') }}</strong>
+                        <small class="text-muted">{{ h.created_at.strftime('%b %d, %Y at %I:%M:%S %p') }}</small>
+                        {% if h.message %}
+                        <p class="small text-secondary bg-light p-2 rounded-3 mt-1 mb-0">{{ h.message }}</p>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column: Delivery Address & Hotel Details -->
+    <div class="col-lg-4">
+        <!-- Delivery Destination -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4 p-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3 text-uppercase text-muted small"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Delivery Destination</h6>
+                {% if order.address %}
+                <h6 class="fw-bold mb-1">{{ order.address.name }}</h6>
+                <p class="small text-muted mb-2">
+                    {{ order.address.address_line1 }}<br>
+                    {% if order.address.address_line2 %}{{ order.address.address_line2 }}<br>{% endif %}
+                    {{ order.address.city }}, {{ order.address.state }} - {{ order.address.postal_code }}
+                </p>
+                <div class="small text-muted"><i class="bi bi-telephone me-1 text-primary"></i> {{ order.address.phone }}</div>
+                {% else %}
+                <p class="text-muted small mb-0">Address information not available.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Hotel Contact -->
+        <div class="card border-0 shadow-sm rounded-4 mb-4 p-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3 text-uppercase text-muted small"><i class="bi bi-shop text-primary me-1"></i> Hotel Details</h6>
+                <h6 class="fw-bold mb-1">{{ order.restaurant.name }}</h6>
+                <p class="small text-muted mb-2">{{ order.restaurant.address }}, {{ order.restaurant.city }}</p>
+                <div class="small text-muted mb-3"><i class="bi bi-telephone me-1 text-primary"></i> {{ order.restaurant.phone }}</div>
+                <a href="{{ url_for('customer.restaurant_detail', restaurant_id=order.restaurant.id) }}" class="btn btn-outline-primary btn-sm w-100">
+                    View Hotel Menu
+                </a>
+            </div>
+        </div>
+
+        <!-- Payment Info -->
+        <div class="card border-0 shadow-sm rounded-4 p-3">
+            <div class="card-body">
+                <h6 class="fw-bold mb-3 text-uppercase text-muted small"><i class="bi bi-credit-card text-success me-1"></i> Payment Summary</h6>
+                {% if order.payment %}
+                <div class="d-flex justify-content-between mb-2 small">
+                    <span class="text-muted">Payment Mode:</span>
+                    <span class="badge {% if order.payment.gateway == 'cod' %}bg-secondary{% else %}bg-primary{% endif %} text-uppercase">{{ order.payment.gateway }}</span>
+                </div>
+                <div class="d-flex justify-content-between small">
+                    <span class="text-muted">Status:</span>
+                    <span class="fw-bold {% if order.payment_status == 'SUCCESS' %}text-success{% elif order.payment_status == 'FAILED' %}text-danger{% else %}text-warning{% endif %}">{{ order.payment_status }}</span>
+                </div>
+                {% else %}
+                <p class="text-muted small mb-0">No payment record associated.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.ring-animation {
+    box-shadow: 0 0 0 4px rgba(255, 82, 0, 0.25);
+    animation: pulse-ring 1.8s infinite;
+}
+@keyframes pulse-ring {
+    0% { box-shadow: 0 0 0 0 rgba(255, 82, 0, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(255, 82, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(255, 82, 0, 0); }
+}
+</style>
+{% endblock %}

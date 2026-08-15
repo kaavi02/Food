@@ -34,6 +34,7 @@ class Order(db.Model):
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
     status_history = db.relationship('OrderStatusHistory', backref='order', lazy=True, cascade="all, delete-orphan")
     payment = db.relationship('Payment', backref='order', uselist=False)
+    address = db.relationship('Address', backref='orders', lazy=True)
 
 class OrderItem(db.Model):
     __tablename__ = 'order_items'
