@@ -1,9 +1,10 @@
-from flask import render_template, redirect, url_for, flash, request, current_app
+from flask import render_template, redirect, url_for, flash, request, current_app, abort, jsonify
 from flask_login import login_required, current_user
+from sqlalchemy.orm import joinedload
 from app import db
 from app.restaurant import restaurant
 from app.restaurant.forms import RestaurantForm, CategoryForm, FoodItemForm
-from app.models import Restaurant, FoodCategory, FoodItem, Order
+from app.models import Restaurant, FoodCategory, FoodItem, Order, OrderItem, OrderStatusHistory
 from app.utils.decorators import role_required
 import os
 import secrets
@@ -26,8 +27,64 @@ def dashboard():
         return redirect(url_for('restaurant.setup_restaurant'))
     
     # Get recent orders
-    recent_orders = Order.query.filter_by(restaurant_id=resto.id).order_by(Order.created_at.desc()).limit(5).all()
-    return render_template('restaurant/dashboard.html', restaurant=resto, recent_orders=recent_orders)
+    recent_orders = Order.query.options(
+        joinedload(Order.customer),
+        joinedload(Order.items).joinedload(OrderItem.food_item)
+    ).filter_by(restaurant_id=resto.id).order_by(Order.created_at.desc()).limit(10).all()
+    
+    total_sales = sum(
+        o.total_amount for o in Order.query.filter_by(restaurant_id=resto.id, order_status='DELIVERED').all()
+    )
+    total_orders = Order.query.filter_by(restaurant_id=resto.id).count()
+    
+    return render_template(
+        'restaurant/dashboard.html',
+        restaurant=resto,
+        recent_orders=recent_orders,
+        total_sales=total_sales,
+        total_orders=total_orders
+    )
+
+@restaurant.route('/orders')
+@login_required
+@role_required('restaurant_owner')
+def orders():
+    resto = Restaurant.query.filter_by(owner_id=current_user.id).first()
+    if not resto:
+        return redirect(url_for('restaurant.setup_restaurant'))
+        
+    all_orders = Order.query.options(
+        joinedload(Order.customer),
+        joinedload(Order.address),
+        joinedload(Order.items).joinedload(OrderItem.food_item)
+    ).filter_by(restaurant_id=resto.id).order_by(Order.created_at.desc()).all()
+    
+    return render_template('restaurant/dashboard.html', restaurant=resto, recent_orders=all_orders)
+
+@restaurant.route('/order/<int:order_id>/status', methods=['POST'])
+@login_required
+@role_required('restaurant_owner')
+def update_order_status(order_id):
+    resto = Restaurant.query.filter_by(owner_id=current_user.id).first_or_404()
+    order = Order.query.filter_by(id=order_id, restaurant_id=resto.id).first_or_404()
+    
+    new_status = request.form.get('status')
+    valid_statuses = ['CONFIRMED', 'PREPARING', 'READY_FOR_PICKUP', 'CANCELLED']
+    if new_status in valid_statuses:
+        order.order_status = new_status
+        history = OrderStatusHistory(
+            order_id=order.id,
+            status=new_status,
+            changed_by=current_user.id,
+            message=f'Order {new_status.lower().replace("_", " ")} by kitchen'
+        )
+        db.session.add(history)
+        db.session.commit()
+        flash(f'Order #{order.order_number} marked as {new_status}.', 'success')
+    else:
+        flash('Invalid status provided.', 'danger')
+        
+    return redirect(request.referrer or url_for('restaurant.dashboard'))
 
 @restaurant.route('/setup', methods=['GET', 'POST'])
 @login_required
@@ -81,7 +138,9 @@ def menu():
     resto = Restaurant.query.filter_by(owner_id=current_user.id).first()
     if not resto:
         return redirect(url_for('restaurant.setup_restaurant'))
-    categories = FoodCategory.query.filter_by(restaurant_id=resto.id).order_by(FoodCategory.display_order).all()
+    categories = FoodCategory.query.options(
+        joinedload(FoodCategory.food_items)
+    ).filter_by(restaurant_id=resto.id).order_by(FoodCategory.display_order).all()
     return render_template('restaurant/menu.html', categories=categories, restaurant=resto)
 
 @restaurant.route('/category/add', methods=['GET', 'POST'])
@@ -133,3 +192,26 @@ def add_food(category_id):
         flash('Food item added!', 'success')
         return redirect(url_for('restaurant.menu'))
     return render_template('restaurant/food_form.html', form=form, title="Add Food Item", category=category)
+
+@restaurant.route('/food/<int:food_id>/toggle', methods=['POST'])
+@login_required
+@role_required('restaurant_owner')
+def toggle_food(food_id):
+    resto = Restaurant.query.filter_by(owner_id=current_user.id).first_or_404()
+    food = FoodItem.query.filter_by(id=food_id, restaurant_id=resto.id).first_or_404()
+    food.is_available = not food.is_available
+    db.session.commit()
+    status_str = 'available' if food.is_available else 'out of stock'
+    flash(f'{food.name} is now {status_str}.', 'success')
+    return redirect(url_for('restaurant.menu'))
+
+@restaurant.route('/food/<int:food_id>/delete', methods=['POST'])
+@login_required
+@role_required('restaurant_owner')
+def delete_food(food_id):
+    resto = Restaurant.query.filter_by(owner_id=current_user.id).first_or_404()
+    food = FoodItem.query.filter_by(id=food_id, restaurant_id=resto.id).first_or_404()
+    db.session.delete(food)
+    db.session.commit()
+    flash(f'{food.name} deleted from menu.', 'info')
+    return redirect(url_for('restaurant.menu'))

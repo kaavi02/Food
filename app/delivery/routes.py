@@ -57,7 +57,7 @@ def mark_delivered(order_id):
     history = OrderStatusHistory(order_id=order.id, status='DELIVERED', changed_by=current_user.id, message='Order delivered successfully')
     order.order_status = 'DELIVERED'
     
-    if order.payment_status == 'PENDING' and order.payment.gateway == 'cod':
+    if order.payment and order.payment_status == 'PENDING' and order.payment.gateway == 'cod':
         order.payment_status = 'SUCCESS'
         order.payment.status = 'SUCCESS'
         order.payment.paid_at = db.func.current_timestamp()
