@@ -16,7 +16,6 @@ def download_image(url, filename):
     if not os.path.exists(filepath):
         try:
             print(f"Downloading {filename}...")
-            # Use a generic User-Agent
             req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
             with urllib.request.urlopen(req) as response, open(filepath, 'wb') as out_file:
                 out_file.write(response.read())
@@ -27,7 +26,6 @@ def download_image(url, filename):
 def seed_database():
     app = create_app()
     with app.app_context():
-        # Clear existing data for a clean seed
         print("Clearing existing data...")
         db.drop_all()
         db.create_all()
@@ -72,9 +70,9 @@ def seed_database():
         img_rest2 = download_image("https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80", "rest2.jpg")
         img_rest3 = download_image("https://images.unsplash.com/photo-1579684947550-22e945225d9a?w=800&q=80", "rest3.jpg")
         
-        rest1 = Restaurant(owner_id=owner1.id, name="Spice Garden", description="Authentic Indian cuisine with rich flavors.", address="123 Curry Lane", city="Foodville", phone="555-0101", cuisine_type="Indian", rating=4.8, delivery_fee=2.50, minimum_order=10.0, is_active=True, image=img_rest1)
-        rest2 = Restaurant(owner_id=owner2.id, name="Burger House", description="Juicy burgers and crispy fries.", address="456 Grill Blvd", city="Foodville", phone="555-0102", cuisine_type="American", rating=4.5, delivery_fee=1.50, minimum_order=5.0, is_active=True, image=img_rest2)
-        rest3 = Restaurant(owner_id=owner3.id, name="Pizza Corner", description="Wood-fired oven pizzas.", address="789 Slice Ave", city="Foodville", phone="555-0103", cuisine_type="Italian", rating=4.7, delivery_fee=3.00, minimum_order=15.0, is_active=True, image=img_rest3)
+        rest1 = Restaurant(owner_id=owner1.id, name="Spice Garden", description="Authentic Indian cuisine with rich flavors.", address="123 Curry Lane", city="Foodville", phone="555-0101", cuisine_type="Indian", rating=4.8, delivery_fee=40.0, minimum_order=150.0, is_active=True, image=img_rest1)
+        rest2 = Restaurant(owner_id=owner2.id, name="Burger House", description="Juicy burgers and crispy fries.", address="456 Grill Blvd", city="Foodville", phone="555-0102", cuisine_type="American", rating=4.5, delivery_fee=30.0, minimum_order=100.0, is_active=True, image=img_rest2)
+        rest3 = Restaurant(owner_id=owner3.id, name="Pizza Corner", description="Wood-fired oven pizzas.", address="789 Slice Ave", city="Foodville", phone="555-0103", cuisine_type="Italian", rating=4.7, delivery_fee=45.0, minimum_order=200.0, is_active=True, image=img_rest3)
         
         db.session.add_all([rest1, rest2, rest3])
         db.session.commit()
@@ -91,9 +89,9 @@ def seed_database():
         img_naan = download_image("https://images.unsplash.com/photo-1626074353765-517a681e40be?w=800&q=80", "garlic_naan.jpg")
         
         db.session.add_all([
-            FoodItem(restaurant_id=rest1.id, category_id=cat_curry.id, name="Butter Chicken", description="Tender chicken in creamy tomato sauce", price=12.99, is_available=True, image=img_butter_chicken),
-            FoodItem(restaurant_id=rest1.id, category_id=cat_curry.id, name="Palak Paneer", description="Cottage cheese in spinach gravy", price=10.99, is_vegetarian=True, is_available=True, image=img_palak_paneer),
-            FoodItem(restaurant_id=rest1.id, category_id=cat_bread.id, name="Garlic Naan", description="Soft bread with garlic and butter", price=2.99, is_vegetarian=True, is_available=True, image=img_naan)
+            FoodItem(restaurant_id=rest1.id, category_id=cat_curry.id, name="Butter Chicken", description="Tender chicken in creamy tomato sauce", price=280.0, is_available=True, image=img_butter_chicken),
+            FoodItem(restaurant_id=rest1.id, category_id=cat_curry.id, name="Palak Paneer", description="Cottage cheese in spinach gravy", price=220.0, is_vegetarian=True, is_available=True, image=img_palak_paneer),
+            FoodItem(restaurant_id=rest1.id, category_id=cat_bread.id, name="Garlic Naan", description="Soft bread with garlic and butter", price=50.0, is_vegetarian=True, is_available=True, image=img_naan)
         ])
         
         # Rest 2 (Burger House)
@@ -105,8 +103,8 @@ def seed_database():
         img_veggie = download_image("https://images.unsplash.com/photo-1520072959219-c595dc870360?w=800&q=80", "veggie_burger.jpg")
         
         db.session.add_all([
-            FoodItem(restaurant_id=rest2.id, category_id=cat_burger.id, name="Classic Cheeseburger", description="Beef patty with cheddar", price=8.99, is_available=True, image=img_classic),
-            FoodItem(restaurant_id=rest2.id, category_id=cat_burger.id, name="Veggie Burger", description="Plant-based patty", price=7.99, is_vegetarian=True, is_vegan=True, is_available=True, image=img_veggie)
+            FoodItem(restaurant_id=rest2.id, category_id=cat_burger.id, name="Classic Cheeseburger", description="Beef patty with cheddar", price=180.0, is_available=True, image=img_classic),
+            FoodItem(restaurant_id=rest2.id, category_id=cat_burger.id, name="Veggie Burger", description="Plant-based patty", price=140.0, is_vegetarian=True, is_vegan=True, is_available=True, image=img_veggie)
         ])
         
         # Rest 3 (Pizza Corner)
@@ -118,20 +116,12 @@ def seed_database():
         img_pepperoni = download_image("https://images.unsplash.com/photo-1628840042765-356cda07504e?w=800&q=80", "pepperoni.jpg")
         
         db.session.add_all([
-            FoodItem(restaurant_id=rest3.id, category_id=cat_pizza.id, name="Margherita", description="Classic tomato, basil, and mozzarella", price=12.99, is_vegetarian=True, is_available=True, image=img_margherita),
-            FoodItem(restaurant_id=rest3.id, category_id=cat_pizza.id, name="Pepperoni", description="Spicy pepperoni and cheese", price=14.99, is_available=True, image=img_pepperoni)
+            FoodItem(restaurant_id=rest3.id, category_id=cat_pizza.id, name="Margherita", description="Classic tomato, basil, and mozzarella", price=299.0, is_vegetarian=True, is_available=True, image=img_margherita),
+            FoodItem(restaurant_id=rest3.id, category_id=cat_pizza.id, name="Pepperoni", description="Spicy pepperoni and cheese", price=399.0, is_available=True, image=img_pepperoni)
         ])
         
         db.session.commit()
-        print("Database seeded successfully with images!")
-        
-        print("-" * 30)
-        print("Demo Credentials:")
-        print("Admin: admin@food.com / password")
-        print("Restaurant Owner: spice@food.com / password")
-        print("Delivery: delivery@food.com / password")
-        print("Customer: customer@food.com / password")
-        print("-" * 30)
+        print("Database seeded successfully with realistic prices!")
 
 if __name__ == "__main__":
     seed_database()

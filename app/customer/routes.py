@@ -53,9 +53,18 @@ def restaurant_detail(restaurant_id):
     return render_template('customer/restaurant_detail.html', restaurant=restaurant, categories=categories)
 
 @customer.route('/add_to_cart/<int:item_id>', methods=['POST'])
-@login_required
 def add_to_cart(item_id):
+    is_ajax = request.headers.get('X-Requested-With') == 'XMLHttpRequest' or request.is_json
+    
+    if not current_user.is_authenticated:
+        if is_ajax:
+            return jsonify({'success': False, 'redirect': url_for('auth.login'), 'message': 'Please login to add items to cart.'}), 401
+        flash('Please login to add items to your cart.', 'info')
+        return redirect(url_for('auth.login'))
+
     if current_user.role != 'customer':
+        if is_ajax:
+            return jsonify({'success': False, 'message': 'Only customers can place orders.'}), 403
         flash('Only customers can place orders.', 'danger')
         return redirect(url_for('customer.home'))
         
@@ -63,11 +72,17 @@ def add_to_cart(item_id):
     cart = get_or_create_cart()
     
     if cart.restaurant_id and cart.restaurant_id != food.restaurant_id and cart.items:
-        if request.form.get('confirm_clear') == 'yes':
+        if request.form.get('confirm_clear') == 'yes' or request.args.get('confirm_clear') == 'yes':
             for i in cart.items:
                 db.session.delete(i)
             cart.restaurant_id = food.restaurant_id
         else:
+            if is_ajax:
+                return jsonify({
+                    'success': False,
+                    'conflict': True,
+                    'message': 'Your cart contains items from another hotel. Clear cart to proceed?'
+                }), 409
             flash('Your cart contains items from another hotel. Please clear your cart first to order from this hotel.', 'warning')
             return redirect(url_for('customer.cart'))
     else:
@@ -81,8 +96,18 @@ def add_to_cart(item_id):
         db.session.add(cart_item)
         
     db.session.commit()
+    
+    total_cart_items = sum(i.quantity for i in cart.items)
+    
+    if is_ajax:
+        return jsonify({
+            'success': True,
+            'message': f'{food.name} added to cart!',
+            'cart_count': total_cart_items
+        })
+        
     flash(f'{food.name} added to cart.', 'success')
-    return redirect(url_for('customer.restaurant_detail', restaurant_id=food.restaurant_id))
+    return redirect(request.referrer or url_for('customer.restaurant_detail', restaurant_id=food.restaurant_id))
 
 @customer.route('/cart')
 @login_required

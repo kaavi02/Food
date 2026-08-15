@@ -23,13 +23,18 @@
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('customer.home') }}">Home</a></li>
                     <li class="nav-item"><a class="nav-link" href="{{ url_for('customer.restaurants') }}">Hotels</a></li>
                     
                     {% if current_user.is_authenticated %}
                         {% if current_user.role == 'customer' %}
-                            <li class="nav-item"><a class="nav-link" href="{{ url_for('customer.cart') }}"><i class="bi bi-cart"></i> Cart</a></li>
+                            <li class="nav-item">
+                                <a class="nav-link position-relative" href="{{ url_for('customer.cart') }}">
+                                    <i class="bi bi-cart3 fs-5 me-1"></i> Cart
+                                    <span id="nav-cart-badge" class="badge bg-primary rounded-pill d-none ms-1">0</span>
+                                </a>
+                            </li>
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('customer.orders') }}">Orders</a></li>
                         {% elif current_user.role == 'restaurant_owner' %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('restaurant.dashboard') }}">Dashboard</a></li>
@@ -38,15 +43,27 @@
                         {% elif current_user.role == 'admin' %}
                             <li class="nav-item"><a class="nav-link" href="{{ url_for('admin.dashboard') }}">Admin</a></li>
                         {% endif %}
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a></li>
+                        <li class="nav-item ms-lg-2"><a class="nav-link btn btn-outline-light btn-sm px-3 text-white" href="{{ url_for('auth.logout') }}">Logout</a></li>
                     {% else %}
                         <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.login') }}">Login</a></li>
-                        <li class="nav-item"><a class="nav-link" href="{{ url_for('auth.register') }}">Register</a></li>
+                        <li class="nav-item"><a class="nav-link btn btn-primary btn-sm px-3 text-white ms-lg-2" href="{{ url_for('auth.register') }}">Register</a></li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
+
+    <!-- Toast Notification Container for Instant Feedback -->
+    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
+        <div id="liveToast" class="toast align-items-center text-white bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body d-flex align-items-center" id="toastMessage">
+                    <i class="bi bi-check-circle-fill text-success fs-5 me-2"></i> Item added to cart!
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
 
     <div class="container mt-4 mb-5 flex-grow-1">
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -54,13 +71,13 @@
                 {% for category, message in messages %}
                     <div class="alert alert-{{ category }} alert-dismissible fade show d-flex align-items-center" role="alert">
                         {% if category == 'success' %}
-                        <i class="bi bi-check-circle-fill me-2 fs-5"></i>
+                        <i class="bi bi-check-circle-fill me-2 fs-5 text-success"></i>
                         {% elif category == 'danger' %}
-                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
                         {% elif category == 'warning' %}
-                        <i class="bi bi-exclamation-circle-fill me-2 fs-5"></i>
+                        <i class="bi bi-exclamation-circle-fill me-2 fs-5 text-warning"></i>
                         {% else %}
-                        <i class="bi bi-info-circle-fill me-2 fs-5"></i>
+                        <i class="bi bi-info-circle-fill me-2 fs-5 text-info"></i>
                         {% endif %}
                         <div class="flex-grow-1">{{ message }}</div>
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -115,6 +132,110 @@
 
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Instant UI Feedback & Interactivity Script -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const toastEl = document.getElementById('liveToast');
+        const toastMessage = document.getElementById('toastMessage');
+        const bsToast = toastEl ? new bootstrap.Toast(toastEl, { delay: 2500 }) : null;
+
+        function showNotification(msg, isError = false) {
+            if (bsToast && toastMessage) {
+                toastMessage.innerHTML = isError 
+                    ? `<i class="bi bi-exclamation-circle-fill text-danger fs-5 me-2"></i> ${msg}`
+                    : `<i class="bi bi-check-circle-fill text-success fs-5 me-2"></i> ${msg}`;
+                bsToast.show();
+            }
+        }
+
+        // Handle Add to Cart asynchronously without page reload
+        document.querySelectorAll('form[action*="add_to_cart"]').forEach(form => {
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const btn = form.querySelector('button[type="submit"]');
+                const origHtml = btn.innerHTML;
+
+                // 1. Instant 0ms Visual Feedback
+                btn.disabled = true;
+                btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Adding...`;
+
+                fetch(form.action, {
+                    method: 'POST',
+                    body: new FormData(form),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(resp => {
+                    if (resp.status === 401) {
+                        window.location.href = "{{ url_for('auth.login') }}";
+                        return;
+                    }
+                    return resp.json();
+                })
+                .then(data => {
+                    if (!data) return;
+                    if (data.success) {
+                        btn.classList.remove('btn-primary', 'btn-outline-primary', 'btn-outline-success');
+                        btn.classList.add('btn-success');
+                        btn.innerHTML = `<i class="bi bi-check-lg me-1"></i> Added!`;
+                        showNotification(data.message || 'Item added to cart!');
+
+                        const badge = document.getElementById('nav-cart-badge');
+                        if (badge && data.cart_count) {
+                            badge.textContent = data.cart_count;
+                            badge.classList.remove('d-none');
+                        }
+
+                        setTimeout(() => {
+                            btn.disabled = false;
+                            btn.innerHTML = origHtml;
+                            btn.classList.remove('btn-success');
+                            btn.classList.add('btn-primary');
+                        }, 1200);
+                    } else if (data.conflict) {
+                        if (confirm(data.message)) {
+                            // Clear and retry
+                            fetch(form.action + '?confirm_clear=yes', {
+                                method: 'POST',
+                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                            }).then(() => {
+                                showNotification('Cart cleared and item added!');
+                                btn.disabled = false;
+                                btn.innerHTML = origHtml;
+                            });
+                        } else {
+                            btn.disabled = false;
+                            btn.innerHTML = origHtml;
+                        }
+                    } else {
+                        showNotification(data.message || 'Could not add item.', true);
+                        btn.disabled = false;
+                        btn.innerHTML = origHtml;
+                    }
+                })
+                .catch(() => {
+                    // Fallback to normal form submit if fetch fails
+                    form.submit();
+                });
+            });
+        });
+
+        // Instant Loading State for Standard Form Submissions (Login, Register, Checkout)
+        document.querySelectorAll('form:not([action*="add_to_cart"])').forEach(form => {
+            form.addEventListener('submit', function () {
+                const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                if (submitBtn && !submitBtn.disabled) {
+                    setTimeout(() => {
+                        submitBtn.disabled = true;
+                        if (submitBtn.tagName === 'BUTTON') {
+                            submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span> Processing...`;
+                        }
+                    }, 50);
+                }
+            });
+        });
+    });
+    </script>
     {% block scripts %}{% endblock %}
 </body>
 </html>
