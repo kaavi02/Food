@@ -17,6 +17,15 @@ class User(db.Model, UserMixin):
     role = db.Column(db.String(20), nullable=False, default='customer') # customer, restaurant_owner, delivery_partner, admin
     profile_image = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    
+    # 3 Security Questions for Password Recovery
+    sec_q1 = db.Column(db.String(255), nullable=True)
+    sec_a1 = db.Column(db.String(255), nullable=True)
+    sec_q2 = db.Column(db.String(255), nullable=True)
+    sec_a2 = db.Column(db.String(255), nullable=True)
+    sec_q3 = db.Column(db.String(255), nullable=True)
+    sec_a3 = db.Column(db.String(255), nullable=True)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
