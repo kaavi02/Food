@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Food Delivery{% endblock %}</title>
+    <title>{% block title %}Kavi's Quick Bite - Fast • Fresh • Delicious{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -14,10 +16,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body class="d-flex flex-column min-vh-100 bg-light">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm py-2">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('customer.home') }}">
-                <i class="bi bi-shop"></i> FoodDelivery
+            <a class="navbar-brand d-flex align-items-center gap-2" href="{{ url_for('customer.home') }}">
+                <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Kavi's Quick Bite Logo" width="40" height="40" class="rounded-circle shadow-sm border border-light">
+                <span class="fw-bold fs-5 tracking-tight text-white">Kavi's Quick Bite</span>
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -90,8 +93,11 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-4 mb-4">
-                    <h5><i class="bi bi-shop text-primary"></i> FoodDelivery</h5>
-                    <p class="text-muted mt-3">The best food from your favorite local hotels, delivered fast to your door.</p>
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Kavi's Quick Bite Logo" width="44" height="44" class="rounded-circle">
+                        <h5 class="mb-0 text-white fw-bold">Kavi's Quick Bite</h5>
+                    </div>
+                    <p class="text-muted mt-2 small">Fast • Fresh • Delicious food from top local hotels, delivered fast to your door.</p>
                 </div>
                 <div class="col-md-2 mb-4">
                     <h5>Links</h5>
@@ -121,7 +127,7 @@
             </div>
             <hr class="border-secondary">
             <div class="text-center text-muted small">
-                &copy; 2026 FoodDelivery. All rights reserved.
+                &copy; 2026 Kavi's Quick Bite. All rights reserved.
             </div>
         </div>
     </footer>

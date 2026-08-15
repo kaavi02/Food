@@ -31,7 +31,8 @@ var options = {
     "key": "{{ razorpay_key }}", 
     "amount": "{{ (order.total_amount * 100)|int }}",
     "currency": "INR",
-    "name": "FoodDelivery App",
+    "name": "Kavi's Quick Bite",
+    "image": "{{ url_for('static', filename='img/logo.png', _external=True) }}",
     "description": "Payment for Order {{ order.order_number }}",
     "order_id": "{{ razorpay_order_id }}", 
     "handler": function (response){
