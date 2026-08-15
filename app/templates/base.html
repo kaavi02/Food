@@ -149,26 +149,29 @@
             }
         }
 
-        // Handle Add to Cart asynchronously without page reload
+        // Handle Add to Cart asynchronously without duplicate submissions
         document.querySelectorAll('form[action*="add_to_cart"]').forEach(form => {
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
                 const btn = form.querySelector('button[type="submit"]');
+                if (!btn || btn.disabled) return;
+                
                 const origHtml = btn.innerHTML;
-
-                // 1. Instant 0ms Visual Feedback
                 btn.disabled = true;
                 btn.innerHTML = `<span class="spinner-border spinner-border-sm me-1"></span> Adding...`;
 
                 fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form),
-                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                    headers: { 
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json'
+                    }
                 })
                 .then(resp => {
                     if (resp.status === 401) {
                         window.location.href = "{{ url_for('auth.login') }}";
-                        return;
+                        return null;
                     }
                     return resp.json();
                 })
@@ -181,7 +184,7 @@
                         showNotification(data.message || 'Item added to cart!');
 
                         const badge = document.getElementById('nav-cart-badge');
-                        if (badge && data.cart_count) {
+                        if (badge && data.cart_count !== undefined) {
                             badge.textContent = data.cart_count;
                             badge.classList.remove('d-none');
                         }
@@ -197,9 +200,19 @@
                             // Clear and retry
                             fetch(form.action + '?confirm_clear=yes', {
                                 method: 'POST',
-                                headers: { 'X-Requested-With': 'XMLHttpRequest' }
-                            }).then(() => {
+                                headers: { 
+                                    'X-Requested-With': 'XMLHttpRequest',
+                                    'Accept': 'application/json'
+                                }
+                            })
+                            .then(r => r.json())
+                            .then(cData => {
                                 showNotification('Cart cleared and item added!');
+                                const badge = document.getElementById('nav-cart-badge');
+                                if (badge && cData.cart_count !== undefined) {
+                                    badge.textContent = cData.cart_count;
+                                    badge.classList.remove('d-none');
+                                }
                                 btn.disabled = false;
                                 btn.innerHTML = origHtml;
                             });
@@ -213,9 +226,11 @@
                         btn.innerHTML = origHtml;
                     }
                 })
-                .catch(() => {
-                    // Fallback to normal form submit if fetch fails
-                    form.submit();
+                .catch(err => {
+                    console.error('Add to cart error:', err);
+                    showNotification('An error occurred. Please try again.', true);
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
                 });
             });
         });
