@@ -18,6 +18,13 @@ def get_or_create_cart():
         db.session.commit()
     return cart
 
+@customer.route('/ping', methods=['GET', 'HEAD'])
+@customer.route('/health', methods=['GET', 'HEAD'])
+@customer.route('/keep-alive', methods=['GET', 'HEAD'])
+def ping():
+    from app.api.routes import keep_alive
+    return keep_alive()
+
 @customer.route('/')
 def home():
     # Eager load restaurant to avoid N+1 query latency
