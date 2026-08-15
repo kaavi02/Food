@@ -53,39 +53,35 @@
         </div>
     </nav>
 
-    <!-- Toast Notification Container for Instant Feedback -->
-    <div class="toast-container position-fixed bottom-0 end-0 p-3" style="z-index: 1080;">
-        <div id="liveToast" class="toast align-items-center text-white bg-dark border-0 shadow-lg" role="alert" aria-live="assertive" aria-atomic="true">
-            <div class="d-flex">
-                <div class="toast-body d-flex align-items-center" id="toastMessage">
-                    <i class="bi bi-check-circle-fill text-success fs-5 me-2"></i> Item added to cart!
-                </div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>
-        </div>
-    </div>
-
-    <div class="container mt-4 mb-5 flex-grow-1">
+    <!-- Global Floating Toast Notification Container (Top Right) -->
+    <div id="toast-container" class="toast-container position-fixed top-0 end-0 p-3 pt-4" style="z-index: 1095;">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
-                    <div class="alert alert-{{ category }} alert-dismissible fade show d-flex align-items-center" role="alert">
-                        {% if category == 'success' %}
-                        <i class="bi bi-check-circle-fill me-2 fs-5 text-success"></i>
-                        {% elif category == 'danger' %}
-                        <i class="bi bi-exclamation-triangle-fill me-2 fs-5 text-danger"></i>
-                        {% elif category == 'warning' %}
-                        <i class="bi bi-exclamation-circle-fill me-2 fs-5 text-warning"></i>
-                        {% else %}
-                        <i class="bi bi-info-circle-fill me-2 fs-5 text-info"></i>
-                        {% endif %}
-                        <div class="flex-grow-1">{{ message }}</div>
-                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    <div class="toast custom-toast toast-{{ category }} align-items-center show shadow-lg mb-2" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="4000" data-bs-autohide="true">
+                        <div class="d-flex align-items-center py-2 px-3">
+                            <div class="toast-body d-flex align-items-center p-0 flex-grow-1">
+                                {% if category in ['success', 'primary'] %}
+                                <i class="bi bi-check-circle-fill fs-5 me-2 text-white"></i>
+                                {% elif category in ['danger', 'error'] %}
+                                <i class="bi bi-x-circle-fill fs-5 me-2 text-white"></i>
+                                {% elif category == 'warning' %}
+                                <i class="bi bi-exclamation-triangle-fill fs-5 me-2 text-white"></i>
+                                {% else %}
+                                <i class="bi bi-info-circle-fill fs-5 me-2 text-white"></i>
+                                {% endif %}
+                                <span class="fw-semibold text-white">{{ message }}</span>
+                            </div>
+                            <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
+                        </div>
                     </div>
                 {% endfor %}
             {% endif %}
         {% endwith %}
-        
+    </div>
+
+    <!-- Main Container -->
+    <div class="container mt-4 mb-5 flex-grow-1">
         {% block content %}{% endblock %}
     </div>
 
@@ -133,23 +129,56 @@
     <!-- Bootstrap JS Bundle -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Instant UI Feedback & Interactivity Script -->
+    <!-- Instant UI Feedback & Auto-Disappearing Toast System -->
     <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const toastEl = document.getElementById('liveToast');
-        const toastMessage = document.getElementById('toastMessage');
-        const bsToast = toastEl ? new bootstrap.Toast(toastEl, { delay: 2500 }) : null;
+        const toastContainer = document.getElementById('toast-container');
 
-        function showNotification(msg, isError = false) {
-            if (bsToast && toastMessage) {
-                toastMessage.innerHTML = isError 
-                    ? `<i class="bi bi-exclamation-circle-fill text-danger fs-5 me-2"></i> ${msg}`
-                    : `<i class="bi bi-check-circle-fill text-success fs-5 me-2"></i> ${msg}`;
-                bsToast.show();
+        // Automatically initialize all pre-rendered Flask flash toasts
+        document.querySelectorAll('.toast').forEach(tEl => {
+            const toast = new bootstrap.Toast(tEl, { delay: 3500, autohide: true });
+            toast.show();
+        });
+
+        // Global Helper: Show a floating popup that automatically disappears
+        window.showToast = function(msg, type = 'success') {
+            if (!toastContainer) return;
+            
+            const toastEl = document.createElement('div');
+            toastEl.className = `toast custom-toast toast-${type} align-items-center shadow-lg mb-2`;
+            toastEl.setAttribute('role', 'alert');
+            toastEl.setAttribute('aria-live', 'assertive');
+            toastEl.setAttribute('aria-atomic', 'true');
+
+            let iconHtml = '<i class="bi bi-check-circle-fill fs-5 me-2 text-white"></i>';
+            if (type === 'danger' || type === 'error') {
+                iconHtml = '<i class="bi bi-x-circle-fill fs-5 me-2 text-white"></i>';
+            } else if (type === 'warning') {
+                iconHtml = '<i class="bi bi-exclamation-triangle-fill fs-5 me-2 text-white"></i>';
+            } else if (type === 'info') {
+                iconHtml = '<i class="bi bi-info-circle-fill fs-5 me-2 text-white"></i>';
             }
-        }
 
-        // Handle Add to Cart asynchronously without duplicate submissions
+            toastEl.innerHTML = `
+                <div class="d-flex align-items-center py-2 px-3">
+                    <div class="toast-body d-flex align-items-center p-0 flex-grow-1">
+                        ${iconHtml}
+                        <span class="fw-semibold text-white">${msg}</span>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white ms-2" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            `;
+
+            toastContainer.appendChild(toastEl);
+            const bsToast = new bootstrap.Toast(toastEl, { delay: 3500, autohide: true });
+            bsToast.show();
+
+            toastEl.addEventListener('hidden.bs.toast', () => {
+                toastEl.remove();
+            });
+        };
+
+        // Handle Add to Cart asynchronously without page reload & popup toast
         document.querySelectorAll('form[action*="add_to_cart"]').forEach(form => {
             form.addEventListener('submit', function (e) {
                 e.preventDefault();
@@ -181,7 +210,7 @@
                         btn.classList.remove('btn-primary', 'btn-outline-primary', 'btn-outline-success');
                         btn.classList.add('btn-success');
                         btn.innerHTML = `<i class="bi bi-check-lg me-1"></i> Added!`;
-                        showNotification(data.message || 'Item added to cart!');
+                        window.showToast(data.message || 'Item added to cart!', 'success');
 
                         const badge = document.getElementById('nav-cart-badge');
                         if (badge && data.cart_count !== undefined) {
@@ -197,7 +226,6 @@
                         }, 1200);
                     } else if (data.conflict) {
                         if (confirm(data.message)) {
-                            // Clear and retry
                             fetch(form.action + '?confirm_clear=yes', {
                                 method: 'POST',
                                 headers: { 
@@ -207,7 +235,7 @@
                             })
                             .then(r => r.json())
                             .then(cData => {
-                                showNotification('Cart cleared and item added!');
+                                window.showToast('Cart cleared and item added!', 'success');
                                 const badge = document.getElementById('nav-cart-badge');
                                 if (badge && cData.cart_count !== undefined) {
                                     badge.textContent = cData.cart_count;
@@ -221,14 +249,14 @@
                             btn.innerHTML = origHtml;
                         }
                     } else {
-                        showNotification(data.message || 'Could not add item.', true);
+                        window.showToast(data.message || 'Could not add item.', 'danger');
                         btn.disabled = false;
                         btn.innerHTML = origHtml;
                     }
                 })
                 .catch(err => {
                     console.error('Add to cart error:', err);
-                    showNotification('An error occurred. Please try again.', true);
+                    window.showToast('An error occurred. Please try again.', 'danger');
                     btn.disabled = false;
                     btn.innerHTML = origHtml;
                 });
