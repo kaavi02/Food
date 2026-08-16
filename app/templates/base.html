@@ -230,30 +230,6 @@
                             btn.classList.remove('btn-success');
                             btn.classList.add('btn-primary');
                         }, 1200);
-                    } else if (data.conflict) {
-                        if (confirm(data.message)) {
-                            fetch(form.action + '?confirm_clear=yes', {
-                                method: 'POST',
-                                headers: { 
-                                    'X-Requested-With': 'XMLHttpRequest',
-                                    'Accept': 'application/json'
-                                }
-                            })
-                            .then(r => r.json())
-                            .then(cData => {
-                                window.showToast('Cart cleared and item added!', 'success');
-                                const badge = document.getElementById('nav-cart-badge');
-                                if (badge && cData.cart_count !== undefined) {
-                                    badge.textContent = cData.cart_count;
-                                    badge.classList.remove('d-none');
-                                }
-                                btn.disabled = false;
-                                btn.innerHTML = origHtml;
-                            });
-                        } else {
-                            btn.disabled = false;
-                            btn.innerHTML = origHtml;
-                        }
                     } else {
                         window.showToast(data.message || 'Could not add item.', 'danger');
                         btn.disabled = false;

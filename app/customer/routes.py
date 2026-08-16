@@ -1,4 +1,4 @@
-from flask import render_template, redirect, url_for, flash, request, current_app, abort, jsonify
+from flask import render_template, redirect, url_for, flash, request, current_app, abort, jsonify, session
 from flask_login import login_required, current_user
 from sqlalchemy.orm import joinedload
 from app import db
@@ -9,7 +9,7 @@ import razorpay
 
 def get_or_create_cart():
     cart = Cart.query.options(
-        joinedload(Cart.items).joinedload(CartItem.food_item)
+        joinedload(Cart.items).joinedload(CartItem.food_item).joinedload(FoodItem.restaurant)
     ).filter_by(user_id=current_user.id).first()
     
     if not cart:
@@ -27,7 +27,6 @@ def ping():
 
 @customer.route('/')
 def home():
-    # Eager load restaurant to avoid N+1 query latency
     popular_foods = FoodItem.query.options(
         joinedload(FoodItem.restaurant)
     ).filter_by(is_available=True).limit(8).all()
@@ -52,7 +51,6 @@ def restaurant_detail(restaurant_id):
         flash('This hotel is currently unavailable.', 'warning')
         return redirect(url_for('customer.restaurants'))
         
-    # Eager load food items for all categories in a single query
     categories = FoodCategory.query.options(
         joinedload(FoodCategory.food_items)
     ).filter_by(restaurant_id=restaurant_id, is_active=True).order_by(FoodCategory.display_order).all()
@@ -78,23 +76,7 @@ def add_to_cart(item_id):
     food = FoodItem.query.get_or_404(item_id)
     cart = get_or_create_cart()
     
-    if cart.restaurant_id and cart.restaurant_id != food.restaurant_id and cart.items:
-        if request.form.get('confirm_clear') == 'yes' or request.args.get('confirm_clear') == 'yes':
-            for i in cart.items:
-                db.session.delete(i)
-            cart.restaurant_id = food.restaurant_id
-        else:
-            if is_ajax:
-                return jsonify({
-                    'success': False,
-                    'conflict': True,
-                    'message': 'Your cart contains items from another hotel. Clear cart to proceed?'
-                }), 409
-            flash('Your cart contains items from another hotel. Please clear your cart first to order from this hotel.', 'warning')
-            return redirect(url_for('customer.cart'))
-    else:
-        cart.restaurant_id = food.restaurant_id
-        
+    # Multi-Hotel Support: Allow food items from any hotel in the same cart
     cart_item = CartItem.query.filter_by(cart_id=cart.id, food_item_id=food.id).first()
     if cart_item:
         cart_item.quantity += 1
@@ -120,17 +102,31 @@ def add_to_cart(item_id):
 @login_required
 def cart():
     cart = get_or_create_cart()
-    subtotal = sum(item.food_item.price * item.quantity for item in cart.items)
-    delivery_fee = 0
-    tax = 0
-    if cart.restaurant_id and cart.items:
-        restaurant = Restaurant.query.get(cart.restaurant_id)
-        if restaurant:
-            delivery_fee = restaurant.delivery_fee
-            tax = subtotal * 0.05 # 5% tax
     
+    # Group items by Hotel/Restaurant
+    hotel_groups = {}
+    for item in cart.items:
+        hotel = item.food_item.restaurant
+        if hotel not in hotel_groups:
+            hotel_groups[hotel] = []
+        hotel_groups[hotel].append(item)
+        
+    subtotal = sum(item.food_item.price * item.quantity for item in cart.items)
+    
+    # Customer-friendly delivery calculation (max delivery fee among chosen hotels, default 40)
+    delivery_fee = max([h.delivery_fee for h in hotel_groups.keys()], default=0.0) if hotel_groups else 0.0
+    tax = subtotal * 0.05 # 5% GST
     total = subtotal + delivery_fee + tax
-    return render_template('customer/cart.html', cart=cart, subtotal=subtotal, delivery_fee=delivery_fee, tax=tax, total=total)
+    
+    return render_template(
+        'customer/cart.html',
+        cart=cart,
+        hotel_groups=hotel_groups,
+        subtotal=subtotal,
+        delivery_fee=delivery_fee,
+        tax=tax,
+        total=total
+    )
 
 @customer.route('/cart/clear', methods=['POST'])
 @login_required
@@ -171,15 +167,18 @@ def checkout():
         flash('Your cart is empty.', 'info')
         return redirect(url_for('customer.cart'))
         
-    restaurant = Restaurant.query.get(cart.restaurant_id)
-    subtotal = sum(item.food_item.price * item.quantity for item in cart.items)
-    
-    if subtotal < restaurant.minimum_order:
-        flash(f'Minimum order amount for {restaurant.name} is ₹{restaurant.minimum_order:.2f}', 'danger')
-        return redirect(url_for('customer.cart'))
+    # Group items by Hotel/Restaurant
+    hotel_groups = {}
+    for item in cart.items:
+        hotel = item.food_item.restaurant
+        if hotel not in hotel_groups:
+            hotel_groups[hotel] = []
+        hotel_groups[hotel].append(item)
         
+    subtotal = sum(item.food_item.price * item.quantity for item in cart.items)
+    delivery_fee = max([h.delivery_fee for h in hotel_groups.keys()], default=0.0) if hotel_groups else 0.0
     tax = subtotal * 0.05
-    total = subtotal + restaurant.delivery_fee + tax
+    total = subtotal + delivery_fee + tax
     
     addresses = Address.query.filter_by(user_id=current_user.id).all()
     form = CheckoutForm()
@@ -187,58 +186,126 @@ def checkout():
     
     if form.validate_on_submit():
         try:
-            order = Order(
-                customer_id=current_user.id,
-                restaurant_id=restaurant.id,
-                address_id=form.address_id.data,
-                subtotal=subtotal,
-                delivery_fee=restaurant.delivery_fee,
-                tax=tax,
-                total_amount=total,
-                special_instructions=form.special_instructions.data,
-                payment_status='PENDING',
-                order_status='PLACED'
-            )
-            db.session.add(order)
-            db.session.flush() 
+            created_orders = []
+            num_hotels = len(hotel_groups)
+            # Apportion delivery fee fairly per hotel
+            per_hotel_delivery = round(delivery_fee / num_hotels, 2) if num_hotels > 0 else 0.0
             
-            for item in cart.items:
-                order_item = OrderItem(
-                    order_id=order.id,
-                    food_item_id=item.food_item_id,
-                    quantity=item.quantity,
-                    price=item.food_item.price
+            for hotel, items in hotel_groups.items():
+                h_subtotal = sum(i.food_item.price * i.quantity for i in items)
+                h_tax = round(h_subtotal * 0.05, 2)
+                h_total = h_subtotal + per_hotel_delivery + h_tax
+                
+                order = Order(
+                    customer_id=current_user.id,
+                    restaurant_id=hotel.id,
+                    address_id=form.address_id.data,
+                    subtotal=h_subtotal,
+                    delivery_fee=per_hotel_delivery,
+                    tax=h_tax,
+                    total_amount=h_total,
+                    special_instructions=form.special_instructions.data,
+                    payment_status='PENDING',
+                    order_status='PLACED'
                 )
-                db.session.add(order_item)
-                db.session.delete(item) 
-            
+                db.session.add(order)
+                db.session.flush() # get order.id
+                
+                for item in items:
+                    order_item = OrderItem(
+                        order_id=order.id,
+                        food_item_id=item.food_item_id,
+                        quantity=item.quantity,
+                        price=item.food_item.price
+                    )
+                    db.session.add(order_item)
+                    db.session.delete(item)
+                    
+                history = OrderStatusHistory(
+                    order_id=order.id,
+                    status='PLACED',
+                    changed_by=current_user.id,
+                    message=f'Order placed with {hotel.name}'
+                )
+                db.session.add(history)
+                
+                payment = Payment(
+                    order_id=order.id,
+                    gateway=form.payment_method.data,
+                    amount=h_total,
+                    payment_method=form.payment_method.data,
+                    status='PENDING'
+                )
+                db.session.add(payment)
+                created_orders.append(order)
+                
             cart.restaurant_id = None
-            
-            history = OrderStatusHistory(order_id=order.id, status='PLACED', changed_by=current_user.id, message='Order placed by customer')
-            db.session.add(history)
-            
-            payment = Payment(
-                order_id=order.id,
-                gateway=form.payment_method.data,
-                amount=total,
-                payment_method=form.payment_method.data,
-                status='PENDING'
-            )
-            db.session.add(payment)
             db.session.commit()
             
             if form.payment_method.data == 'razorpay':
-                return redirect(url_for('customer.payment', order_id=order.id))
+                session['checkout_order_ids'] = [o.id for o in created_orders]
+                return redirect(url_for('customer.payment_multi'))
             else:
-                flash('Order placed successfully with Cash on Delivery.', 'success')
-                return redirect(url_for('customer.track_order', order_id=order.id))
+                hotel_count = len(created_orders)
+                if hotel_count > 1:
+                    flash(f'Successfully placed {hotel_count} orders across your selected hotels with Cash on Delivery!', 'success')
+                else:
+                    flash('Order placed successfully with Cash on Delivery.', 'success')
+                return redirect(url_for('customer.orders'))
                 
         except Exception as e:
             db.session.rollback()
             flash('An error occurred while placing the order. Please try again.', 'danger')
-            current_app.logger.error(f'Order error: {e}')
+            current_app.logger.error(f'Multi-order error: {e}')
             
-    return render_template('customer/checkout.html', form=form, cart=cart, subtotal=subtotal, tax=tax, total=total, restaurant=restaurant, addresses=addresses)
+    return render_template(
+        'customer/checkout.html',
+        form=form,
+        cart=cart,
+        hotel_groups=hotel_groups,
+        subtotal=subtotal,
+        delivery_fee=delivery_fee,
+        tax=tax,
+        total=total,
+        addresses=addresses
+    )
+
+@customer.route('/payment/multi')
+@login_required
+def payment_multi():
+    order_ids = session.get('checkout_order_ids', [])
+    if not order_ids:
+        flash('No active checkout session found.', 'warning')
+        return redirect(url_for('customer.orders'))
+        
+    orders = Order.query.filter(Order.id.in_(order_ids), Order.customer_id == current_user.id).all()
+    if not orders:
+        flash('Orders not found.', 'danger')
+        return redirect(url_for('customer.orders'))
+        
+    grand_total = sum(o.total_amount for o in orders)
+    
+    client = razorpay.Client(auth=(current_app.config['RAZORPAY_KEY_ID'], current_app.config['RAZORPAY_KEY_SECRET']))
+    
+    razorpay_order = client.order.create({
+        'amount': int(round(grand_total * 100)),
+        'currency': 'INR',
+        'receipt': f"BATCH-{orders[0].id}"
+    })
+    
+    for o in orders:
+        if o.payment:
+            o.payment.gateway_order_id = razorpay_order['id']
+    db.session.commit()
+    
+    return render_template(
+        'customer/payment.html',
+        order=orders[0],
+        orders=orders,
+        grand_total=grand_total,
+        razorpay_order_id=razorpay_order['id'],
+        razorpay_key=current_app.config['RAZORPAY_KEY_ID']
+    )
 
 @customer.route('/payment/<int:order_id>')
 @login_required
@@ -250,15 +317,22 @@ def payment(order_id):
     client = razorpay.Client(auth=(current_app.config['RAZORPAY_KEY_ID'], current_app.config['RAZORPAY_KEY_SECRET']))
     
     razorpay_order = client.order.create({
-        'amount': int(order.total_amount * 100),
+        'amount': int(round(order.total_amount * 100)),
         'currency': 'INR',
         'receipt': str(order.id)
     })
     
-    order.payment.gateway_order_id = razorpay_order['id']
+    if order.payment:
+        order.payment.gateway_order_id = razorpay_order['id']
     db.session.commit()
     
-    return render_template('customer/payment.html', order=order, razorpay_order_id=razorpay_order['id'], razorpay_key=current_app.config['RAZORPAY_KEY_ID'])
+    return render_template(
+        'customer/payment.html',
+        order=order,
+        grand_total=order.total_amount,
+        razorpay_order_id=razorpay_order['id'],
+        razorpay_key=current_app.config['RAZORPAY_KEY_ID']
+    )
 
 @customer.route('/payment/verify', methods=['POST'])
 @login_required
@@ -266,9 +340,6 @@ def payment_verify():
     razorpay_payment_id = request.form.get('razorpay_payment_id')
     razorpay_order_id = request.form.get('razorpay_order_id')
     razorpay_signature = request.form.get('razorpay_signature')
-    order_id = request.form.get('order_id')
-    
-    order = Order.query.get_or_404(order_id)
     
     client = razorpay.Client(auth=(current_app.config['RAZORPAY_KEY_ID'], current_app.config['RAZORPAY_KEY_SECRET']))
     try:
@@ -278,22 +349,38 @@ def payment_verify():
             'razorpay_signature': razorpay_signature
         })
         
-        order.payment.status = 'SUCCESS'
-        order.payment.transaction_id = razorpay_payment_id
-        order.payment.paid_at = db.func.current_timestamp()
-        order.payment_status = 'SUCCESS'
-        
-        history = OrderStatusHistory(order_id=order.id, status='CONFIRMED', message='Payment successful, order confirmed.')
-        order.order_status = 'CONFIRMED'
-        db.session.add(history)
-        
+        # Check if this payment was for a multi-order batch
+        order_ids = session.pop('checkout_order_ids', None)
+        if order_ids:
+            orders = Order.query.filter(Order.id.in_(order_ids), Order.customer_id == current_user.id).all()
+        else:
+            order_id = request.form.get('order_id')
+            orders = [Order.query.get(order_id)] if order_id else []
+            
+        for o in orders:
+            if o:
+                if o.payment:
+                    o.payment.status = 'SUCCESS'
+                    o.payment.transaction_id = razorpay_payment_id
+                    o.payment.paid_at = db.func.current_timestamp()
+                o.payment_status = 'SUCCESS'
+                o.order_status = 'CONFIRMED'
+                history = OrderStatusHistory(order_id=o.id, status='CONFIRMED', message='Online payment verified successfully.')
+                db.session.add(history)
+                
         db.session.commit()
-        flash('Payment successful! Your order is confirmed.', 'success')
-        return redirect(url_for('customer.track_order', order_id=order.id))
+        flash('Payment successful! Your order(s) are confirmed.', 'success')
+        return redirect(url_for('customer.orders'))
+        
     except razorpay.errors.SignatureVerificationError:
-        order.payment.status = 'FAILED'
-        order.payment_status = 'FAILED'
-        db.session.commit()
+        order_ids = session.pop('checkout_order_ids', None)
+        if order_ids:
+            orders = Order.query.filter(Order.id.in_(order_ids)).all()
+            for o in orders:
+                if o.payment:
+                    o.payment.status = 'FAILED'
+                o.payment_status = 'FAILED'
+            db.session.commit()
         flash('Payment verification failed.', 'danger')
         return redirect(url_for('customer.orders'))
 
@@ -322,7 +409,6 @@ def track_order(order_id):
         
     history = OrderStatusHistory.query.filter_by(order_id=order_id).order_by(OrderStatusHistory.created_at.asc()).all()
     
-    # 5 standard tracking steps
     stages = [
         {'key': 'PLACED', 'label': 'Order Placed', 'icon': 'bi-receipt'},
         {'key': 'CONFIRMED', 'label': 'Confirmed', 'icon': 'bi-check2-circle'},
@@ -335,9 +421,9 @@ def track_order(order_id):
     current_step = 0
     if order.order_status in status_order:
         idx = status_order.index(order.order_status)
-        if idx >= 4: # OUT_FOR_DELIVERY (4) -> step 3, DELIVERED (5) -> step 4
+        if idx >= 4:
             current_step = 3 if idx == 4 else 4
-        elif idx == 3: # READY_FOR_PICKUP counts as end of preparing
+        elif idx == 3:
             current_step = 2
         else:
             current_step = idx

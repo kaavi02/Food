@@ -1,95 +1,160 @@
 {% extends "base.html" %}
-{% block title %}Your Cart{% endblock %}
+{% block title %}Your Cart - Kavi's Quick Bite{% endblock %}
+
 {% block content %}
-<h2 class="mb-4">Your Cart</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h3 class="fw-bold mb-1"><i class="bi bi-cart3 text-primary me-2"></i> Your Cart</h3>
+        <p class="text-muted mb-0">Review items from your selected hotels before checkout.</p>
+    </div>
+    {% if cart.items %}
+    <form action="{{ url_for('customer.clear_cart') }}" method="POST">
+        <button type="submit" class="btn btn-outline-danger btn-sm rounded-3">
+            <i class="bi bi-trash me-1"></i> Clear Cart
+        </button>
+    </form>
+    {% endif %}
+</div>
+
 {% if cart.items %}
-<div class="row">
-    <div class="col-md-8">
-        <div class="card shadow-sm border-0 mb-4">
+<div class="row g-4">
+    <!-- Left Column: Hotel Groups -->
+    <div class="col-lg-8">
+        {% for hotel, items in hotel_groups.items() %}
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden mb-4">
+            <div class="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    {% if hotel.image %}
+                    <img src="{{ url_for('static', filename='uploads/' + hotel.image) }}" alt="{{ hotel.name }}" class="rounded-circle me-3" style="width: 38px; height: 38px; object-fit: cover;">
+                    {% else %}
+                    <div class="bg-light rounded-circle me-3 d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="bi bi-shop text-primary"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h6 class="fw-bold mb-0">
+                            <a href="{{ url_for('customer.restaurant_detail', restaurant_id=hotel.id) }}" class="text-dark text-decoration-none">
+                                {{ hotel.name }}
+                            </a>
+                        </h6>
+                        <small class="text-muted">{{ hotel.cuisine_type }} • {{ hotel.city }}</small>
+                    </div>
+                </div>
+                <span class="badge bg-light text-dark border px-2 py-1 small">
+                    {{ items|length }} {% if items|length == 1 %}item{% else %}items{% endif %}
+                </span>
+            </div>
+            
             <div class="card-body p-0">
-                <table class="table mb-0 align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4">Item</th>
-                            <th>Price</th>
-                            <th>Quantity</th>
-                            <th>Total</th>
-                            <th></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in cart.items %}
-                        <tr>
-                            <td class="ps-4">
-                                <div class="d-flex align-items-center">
-                                    {% if item.food_item.image %}
-                                    <img src="{{ url_for('static', filename='uploads/' + item.food_item.image) }}" class="rounded me-3" style="width: 50px; height: 50px; object-fit: cover;">
-                                    {% endif %}
-                                    <div>
-                                        <h6 class="mb-0">{{ item.food_item.name }}</h6>
-                                        <small class="text-muted">{{ item.food_item.category.name }}</small>
+                <div class="table-responsive">
+                    <table class="table mb-0 align-middle">
+                        <tbody>
+                            {% for item in items %}
+                            <tr class="border-bottom">
+                                <td class="ps-4 py-3" style="min-width: 220px;">
+                                    <div class="d-flex align-items-center">
+                                        {% if item.food_item.image %}
+                                        <img src="{{ url_for('static', filename='uploads/' + item.food_item.image) }}" alt="{{ item.food_item.name }}" class="rounded-3 me-3" style="width: 54px; height: 54px; object-fit: cover;">
+                                        {% else %}
+                                        <div class="bg-light rounded-3 me-3 d-flex align-items-center justify-content-center border" style="width: 54px; height: 54px;">
+                                            <i class="bi bi-egg-fried text-muted"></i>
+                                        </div>
+                                        {% endif %}
+                                        <div>
+                                            <h6 class="mb-1 fw-bold text-dark">{{ item.food_item.name }}</h6>
+                                            <span class="text-primary fw-semibold small">₹{{ "%.2f"|format(item.food_item.price) }}</span>
+                                            {% if item.food_item.is_vegetarian %}
+                                            <span class="badge bg-success ms-1" style="font-size: 0.65rem;">Veg</span>
+                                            {% endif %}
+                                        </div>
                                     </div>
-                                </div>
-                            </td>
-                            <td>₹{{ "%.2f"|format(item.food_item.price) }}</td>
-                            <td>
-                                <form action="{{ url_for('customer.update_cart', item_id=item.id) }}" method="POST" class="d-flex align-items-center">
-                                    <button type="submit" name="action" value="decrease" class="btn btn-sm btn-outline-secondary">-</button>
-                                    <span class="mx-3">{{ item.quantity }}</span>
-                                    <button type="submit" name="action" value="increase" class="btn btn-sm btn-outline-secondary">+</button>
-                                </form>
-                            </td>
-                            <td>₹{{ "%.2f"|format(item.food_item.price * item.quantity) }}</td>
-                            <td>
-                                <form action="{{ url_for('customer.update_cart', item_id=item.id) }}" method="POST">
-                                    <button type="submit" name="action" value="remove" class="btn btn-sm btn-danger"><i class="bi bi-trash"></i></button>
-                                </form>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                </td>
+                                
+                                <td class="py-3" style="width: 140px;">
+                                    <form action="{{ url_for('customer.update_cart', item_id=item.id) }}" method="POST" class="d-flex align-items-center">
+                                        <button type="submit" name="action" value="decrease" class="btn btn-sm btn-outline-secondary px-2 py-1 rounded-3">-</button>
+                                        <span class="mx-2 fw-bold text-dark">{{ item.quantity }}</span>
+                                        <button type="submit" name="action" value="increase" class="btn btn-sm btn-outline-secondary px-2 py-1 rounded-3">+</button>
+                                    </form>
+                                </td>
+                                
+                                <td class="py-3 text-end fw-bold text-dark" style="width: 110px;">
+                                    ₹{{ "%.2f"|format(item.food_item.price * item.quantity) }}
+                                </td>
+                                
+                                <td class="pe-4 py-3 text-end" style="width: 60px;">
+                                    <form action="{{ url_for('customer.update_cart', item_id=item.id) }}" method="POST">
+                                        <button type="submit" name="action" value="remove" class="btn btn-sm text-danger btn-link p-0" title="Remove item">
+                                            <i class="bi bi-trash3 fs-5"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-        <form action="{{ url_for('customer.clear_cart') }}" method="POST">
-            <button type="submit" class="btn btn-outline-danger">Clear Cart</button>
-        </form>
+        {% endfor %}
+
+        <div class="mt-3">
+            <a href="{{ url_for('customer.home') }}" class="btn btn-outline-primary rounded-3">
+                <i class="bi bi-arrow-left me-1"></i> Add More Food Items
+            </a>
+        </div>
     </div>
     
-    <div class="col-md-4">
-        <div class="card shadow-sm border-0">
-            <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
-                <h5 class="mb-0">Order Summary</h5>
+    <!-- Right Column: Order Summary -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm border-0 rounded-4 position-sticky" style="top: 20px;">
+            <div class="card-header bg-white border-bottom-0 pt-4 pb-2 px-4">
+                <h5 class="fw-bold mb-0">Bill Summary</h5>
+                <small class="text-muted">Combined checkout for all selected hotels</small>
             </div>
-            <div class="card-body">
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Subtotal</span>
-                    <span>₹{{ "%.2f"|format(subtotal) }}</span>
+            <div class="card-body px-4 pb-4">
+                <div class="d-flex justify-content-between mb-2 small">
+                    <span class="text-muted">Item Subtotal</span>
+                    <span class="fw-bold">₹{{ "%.2f"|format(subtotal) }}</span>
                 </div>
-                <div class="d-flex justify-content-between mb-2">
-                    <span class="text-muted">Delivery Fee</span>
+                <div class="d-flex justify-content-between mb-2 small">
+                    <span class="text-muted">Delivery Partner Fee</span>
                     <span>₹{{ "%.2f"|format(delivery_fee) }}</span>
                 </div>
-                <div class="d-flex justify-content-between mb-3">
-                    <span class="text-muted">Tax (5%)</span>
+                <div class="d-flex justify-content-between mb-3 small">
+                    <span class="text-muted">GST & Charges (5%)</span>
                     <span>₹{{ "%.2f"|format(tax) }}</span>
                 </div>
-                <hr>
-                <div class="d-flex justify-content-between mb-4">
-                    <strong class="fs-5">Total</strong>
-                    <strong class="fs-5">₹{{ "%.2f"|format(total) }}</strong>
+                
+                <div class="p-3 bg-light rounded-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold text-dark fs-6">Grand Total</span>
+                        <span class="fw-bold text-primary fs-5">₹{{ "%.2f"|format(total) }}</span>
+                    </div>
                 </div>
-                <a href="{{ url_for('customer.checkout') }}" class="btn btn-success btn-lg w-100">Proceed to Checkout</a>
+                
+                <div class="d-grid mb-2">
+                    <a href="{{ url_for('customer.checkout') }}" class="btn btn-primary btn-lg py-2 fw-bold rounded-3 shadow-sm">
+                        Proceed to Checkout <i class="bi bi-arrow-right ms-1"></i>
+                    </a>
+                </div>
+                <div class="text-center text-muted small mt-2">
+                    <i class="bi bi-shield-check text-success me-1"></i> Safe & Secure Checkout
+                </div>
             </div>
         </div>
     </div>
 </div>
 {% else %}
-<div class="text-center py-5">
-    <i class="bi bi-cart3 display-1 text-muted mb-3"></i>
-    <h4>Your cart is empty</h4>
-    <p class="text-muted mb-4">Looks like you haven't added any food to your cart yet.</p>
-    <a href="{{ url_for('customer.restaurants') }}" class="btn btn-primary">Browse Restaurants</a>
+<div class="card border-0 shadow-sm rounded-4 text-center py-5 my-4">
+    <div class="card-body">
+        <i class="bi bi-cart3 display-1 text-muted mb-3 opacity-50"></i>
+        <h4 class="fw-bold">Your cart is empty</h4>
+        <p class="text-muted mb-4">You can add dishes from multiple hotels and order them all together!</p>
+        <a href="{{ url_for('customer.home') }}" class="btn btn-primary px-4 py-2 rounded-3">
+            <i class="bi bi-shop me-1"></i> Browse Popular Dishes
+        </a>
+    </div>
 </div>
 {% endif %}
 {% endblock %}
